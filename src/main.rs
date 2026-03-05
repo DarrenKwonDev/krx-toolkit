@@ -42,7 +42,7 @@ fn main() -> eframe::Result {
 struct MyApp {
     _show_confirmation_dialog: bool,
     _allowed_to_close: bool,
-    _always_on_top: bool,
+    always_on_top: bool,
     quick_input: String,
 }
 
@@ -73,7 +73,7 @@ impl eframe::App for MyApp {
                         ui.add_space(CONTROL_PANEL_SIDE_MAGIN);
                         ui.add_sized(top_left_btn_size, egui::Button::new("설정"));
                         ui.add_sized(top_left_btn_size, egui::Button::new("계좌"));
-                        ui.add_sized(top_left_btn_size, egui::Button::new("주문 도구"));
+                        ui.add_sized(top_left_btn_size, egui::Button::new("주문"));
                         ui.add_sized(top_left_btn_size, egui::Button::new("미체결"));
                         ui.add_sized(top_left_btn_size, egui::Button::new("잔고"));
 
@@ -81,7 +81,17 @@ impl eframe::App for MyApp {
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             ui.add_space(CONTROL_PANEL_SIDE_MAGIN);
-                            ui.add_sized(top_right_btn_size, egui::Button::new("P"));
+
+                            let pin_label = if self.always_on_top { "P*" } else { "P" };
+                            if ui.add_sized(top_right_btn_size, egui::Button::new(pin_label)).clicked() {
+                                self.always_on_top = !self.always_on_top;
+                                let level = if self.always_on_top {
+                                    egui::WindowLevel::AlwaysOnTop
+                                } else {
+                                    egui::WindowLevel::Normal
+                                };
+                                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(level));
+                            }
                         });
                     });
                 });

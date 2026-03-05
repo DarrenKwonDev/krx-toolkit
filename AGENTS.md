@@ -17,9 +17,9 @@
 - [x] egui 및 기타 필요한 deps 파악
 - [x] 한국어 지원 font 설정
 - [x] zero margin, zero padding
+- [x] always on top 버튼  
 - [ ] multiple viewport 지원을 위한 부모 viewport 생성
 - [ ] 종료시 confirm 묻기
-- [ ] always on top 버튼  
 - [ ] 부모 viewport에 dark/light mode 지원
 - [ ] 플래그에 따라 puppin 기반 통한 퍼포먼스 측정 도구 도입
 
