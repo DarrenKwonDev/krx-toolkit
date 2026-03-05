@@ -46,8 +46,8 @@ fn main() -> eframe::Result {
 }
 
 struct MyApp {
-    _show_confirmation_dialog: bool,
-    _allowed_to_close: bool,
+    show_confirmation_dialog: Arc<AtomicBool>,
+    allowed_to_close: Arc<AtomicBool>,
     always_on_top: bool,
     opened_viewports: Vec<egui::ViewportId>,
     // ----viewport 상태 변수----
@@ -58,20 +58,28 @@ struct MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if ctx.input(|i| i.viewport().close_requested()) && !self.allowed_to_close.load(Ordering::Relaxed) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.show_confirmation_dialog.store(true, Ordering::Relaxed);
+        }
+
+        // main control panel
         self.render_control_panel(ctx);
 
         // setting viewport
         self.render_settings_viewport(ctx);
         self.render_account_viewport(ctx);
         self.render_order_tool_viewport(ctx);
+
+        self.render_exit_confirm_viewport(ctx);
     }
 }
 
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            _show_confirmation_dialog: Default::default(),
-            _allowed_to_close: Default::default(),
+            show_confirmation_dialog: Default::default(),
+            allowed_to_close: Default::default(),
             always_on_top: Default::default(),
             opened_viewports: vec![egui::ViewportId::ROOT],
             // ----viewport 상태 변수----
@@ -284,6 +292,57 @@ impl MyApp {
                 // 닫힐 경우 상태 변수 false로 재지정
                 if child_ctx.input(|i| i.viewport().close_requested()) {
                     show_settings.store(false, Ordering::Relaxed);
+                }
+            },
+        );
+    }
+
+    fn render_exit_confirm_viewport(&mut self, ctx: &egui::Context) {
+        const EXIT_CONFIRM_VIEWPORT_ID: &str = "exit_confirm_viewport";
+        let show_confirm = Arc::clone(&self.show_confirmation_dialog);
+        let allowed_to_close = Arc::clone(&self.allowed_to_close);
+        if !show_confirm.load(Ordering::Relaxed) {
+            return;
+        }
+        ctx.show_viewport_deferred(
+            egui::ViewportId::from_hash_of(EXIT_CONFIRM_VIEWPORT_ID),
+            egui::ViewportBuilder::default()
+                .with_title("종료 확인")
+                .with_inner_size([200.0, 60.0])
+                .with_resizable(false),
+            move |child_ctx, class| {
+                if class == egui::ViewportClass::Embedded {
+                    egui::Window::new("종료 확인").show(child_ctx, |ui| {
+                        ui.label("정말 종료하시겠습니까?");
+                        ui.horizontal(|ui| {
+                            if ui.button("종료").clicked() {
+                                allowed_to_close.store(true, Ordering::Relaxed);
+                                show_confirm.store(false, Ordering::Relaxed);
+                                child_ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Close);
+                            }
+                            if ui.button("취소").clicked() {
+                                show_confirm.store(false, Ordering::Relaxed);
+                            }
+                        });
+                    });
+                } else {
+                    egui::CentralPanel::default().show(child_ctx, |ui| {
+                        ui.label("정말 종료하시겠습니까?");
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            if ui.button("종료").clicked() {
+                                allowed_to_close.store(true, Ordering::Relaxed);
+                                show_confirm.store(false, Ordering::Relaxed);
+                                child_ctx.send_viewport_cmd_to(egui::ViewportId::ROOT, egui::ViewportCommand::Close);
+                            }
+                            if ui.button("취소").clicked() {
+                                show_confirm.store(false, Ordering::Relaxed);
+                            }
+                        });
+                    });
+                }
+                if child_ctx.input(|i| i.viewport().close_requested()) {
+                    show_confirm.store(false, Ordering::Relaxed);
                 }
             },
         );
