@@ -16,6 +16,7 @@
 
 - [x] egui 및 기타 필요한 deps 파악
 - [x] 한국어 지원 font 설정
+- [x] zero margin, zero padding
 - [ ] multiple viewport 지원을 위한 부모 viewport 생성
 - [ ] 종료시 confirm 묻기
 - [ ] always on top 버튼  
