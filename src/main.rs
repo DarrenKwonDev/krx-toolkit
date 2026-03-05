@@ -2,11 +2,16 @@
 
 mod constants;
 
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use eframe::egui::{self, FontData, FontDefinitions, FontFamily, Ui};
 
 use crate::constants::{
-    CONTROL_PANEL_BUTTON_H, CONTROL_PANEL_BUTTON_W, CONTROL_PANEL_HEIGHT, CONTROL_PANEL_SIDE_MAGIN,
-    CONTROL_PANEL_TEXT_INPUT_H, CONTROL_PANEL_TEXT_INPUT_W, CONTROL_PANEL_WIDTH,
+    CONTROL_PANEL_BOTTOM_MARGIN, CONTROL_PANEL_BUTTON_H, CONTROL_PANEL_BUTTON_W, CONTROL_PANEL_HEIGHT,
+    CONTROL_PANEL_SIDE_MAGIN, CONTROL_PANEL_WIDTH, SETTING_VIEWPORT_ID,
 };
 
 fn main() -> eframe::Result {
@@ -40,10 +45,10 @@ fn main() -> eframe::Result {
 
 #[derive(Default)]
 struct MyApp {
+    show_settings_viewport: Arc<AtomicBool>,
     _show_confirmation_dialog: bool,
     _allowed_to_close: bool,
     always_on_top: bool,
-    quick_input: String,
 }
 
 impl eframe::App for MyApp {
@@ -57,7 +62,7 @@ impl eframe::App for MyApp {
             )
             .show(ctx, |ui| {
                 let rect = ui.max_rect();
-                let split_y = rect.center().y;
+                let split_y = (rect.max.y - CONTROL_PANEL_BOTTOM_MARGIN).max(rect.min.y);
 
                 // (좌상(x, y), 우하(x, y))
                 let top_rect = egui::Rect::from_min_max(rect.min, egui::pos2(rect.max.x, split_y));
@@ -67,15 +72,18 @@ impl eframe::App for MyApp {
                 let top_right_btn_size = egui::vec2(CONTROL_PANEL_BUTTON_H, CONTROL_PANEL_BUTTON_H);
 
                 ui.scope_builder(egui::UiBuilder::new().max_rect(top_rect), |ui| {
-                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.x = 1.0;
 
                         ui.add_space(CONTROL_PANEL_SIDE_MAGIN);
-                        ui.add_sized(top_left_btn_size, egui::Button::new("설정"));
-                        ui.add_sized(top_left_btn_size, egui::Button::new("계좌"));
-                        ui.add_sized(top_left_btn_size, egui::Button::new("주문"));
-                        ui.add_sized(top_left_btn_size, egui::Button::new("미체결"));
-                        ui.add_sized(top_left_btn_size, egui::Button::new("잔고"));
+                        if ui.add_sized(top_left_btn_size, egui::Button::new("설정")).clicked() {
+                            self.show_settings_viewport.store(true, Ordering::Relaxed);
+                        };
+                        ui.add_sized(top_left_btn_size, egui::Button::new("계좌관리"));
+                        ui.add_sized(top_left_btn_size, egui::Button::new("주문도구"));
+                        ui.add_sized(top_left_btn_size, egui::Button::new("주문체결"));
+                        ui.add_sized(top_left_btn_size, egui::Button::new("빠른호가"));
+                        ui.add_sized(top_left_btn_size, egui::Button::new("잔고손익"));
 
                         ui.add_space(ui.available_width());
 
@@ -104,19 +112,47 @@ impl eframe::App for MyApp {
 
                 ui.scope_builder(egui::UiBuilder::new().max_rect(bottom_rect), |ui| {
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                        let stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(110));
-                        ui.visuals_mut().widgets.inactive.bg_stroke = stroke;
-                        ui.visuals_mut().widgets.hovered.bg_stroke = stroke;
-                        ui.visuals_mut().widgets.active.bg_stroke = stroke;
-
                         ui.add_space(CONTROL_PANEL_SIDE_MAGIN);
-                        ui.add_sized(
-                            [CONTROL_PANEL_TEXT_INPUT_W, CONTROL_PANEL_TEXT_INPUT_H],
-                            egui::TextEdit::singleline(&mut self.quick_input),
-                        );
+                        ui.label("krx-tools ... bottom");
                     });
                 });
-            });
+            }); // end Central
+
+        // setting viewport
+        self.render_settings_viewport(ctx);
+    }
+}
+
+impl MyApp {
+    fn render_settings_viewport(&mut self, ctx: &egui::Context) {
+        if self.show_settings_viewport.load(Ordering::Relaxed) {
+            let show_settings = Arc::clone(&self.show_settings_viewport);
+
+            // viewport
+            ctx.show_viewport_deferred(
+                egui::ViewportId::from_hash_of(SETTING_VIEWPORT_ID),
+                egui::ViewportBuilder::default()
+                    .with_title("설정")
+                    .with_inner_size([360.0, 220.0]),
+                move |child_ctx, class| {
+                    // embedded는 허용하지 않지만 fallback으로 둔다
+                    if class == egui::ViewportClass::Embedded {
+                        egui::Window::new("설정").show(child_ctx, |ui| {
+                            ui.label("settings placeholder");
+                        });
+                    } else {
+                        egui::CentralPanel::default().show(child_ctx, |ui| {
+                            _debug_check_rect(ui);
+                        });
+                    }
+
+                    // 닫힐 경우 상태 변수 false로 재지정
+                    if child_ctx.input(|i| i.viewport().close_requested()) {
+                        show_settings.store(false, Ordering::Relaxed);
+                    }
+                },
+            );
+        }
     }
 }
 
