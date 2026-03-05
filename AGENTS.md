@@ -18,7 +18,9 @@
 - [x] 한국어 지원 font 설정
 - [x] zero margin, zero padding
 - [x] always on top 버튼  
-- [ ] multiple viewport 지원을 위한 부모 viewport 생성
+- [x] multiple viewport 지원을 위한 부모 viewport 생성
+- [x] 자식 viewport 생성하기
+- [x] viewport layer를 top으로 한번에 올리는 버튼
 - [ ] 종료시 confirm 묻기
 - [ ] 부모 viewport에 dark/light mode 지원
 - [ ] 플래그에 따라 puppin 기반 통한 퍼포먼스 측정 도구 도입
