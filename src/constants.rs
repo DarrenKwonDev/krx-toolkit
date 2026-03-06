@@ -15,3 +15,6 @@ pub const ORDER_TOOL_VIEWPORT_H: f32 = 220.0;
 pub const SETTING_VIEWPORT_ID: &str = "settings_viewport";
 pub const ACCOUNT_VIEWPORT_ID: &str = "account_viewport";
 pub const ORDER_TOOL_VIEWPORT_ID: &str = "order_tool_viewport";
+
+pub const KIWOOM_HTTP_URL_BASE: &str = "https://api.kiwoom.com";
+pub const KIWOOM_WS_URL_BASE: &str = "wss://api.kiwoom.com";
