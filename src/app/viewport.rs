@@ -180,6 +180,7 @@ impl MyApp {
                             }
                             if ui.button("취소").clicked() {
                                 show_confirm.store(false, Ordering::Relaxed);
+                                child_ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                             }
                         });
                     });
@@ -195,6 +196,7 @@ impl MyApp {
                             }
                             if ui.button("취소").clicked() {
                                 show_confirm.store(false, Ordering::Relaxed);
+                                child_ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                             }
                         });
                     });

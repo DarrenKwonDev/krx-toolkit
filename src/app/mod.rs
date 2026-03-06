@@ -38,7 +38,10 @@ impl Default for MyApp {
 
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if ctx.input(|i| i.viewport().close_requested()) && !self.allowed_to_close.load(Ordering::Relaxed) {
+        if ctx.input(|i| i.viewport().close_requested())
+            && !self.allowed_to_close.load(Ordering::Relaxed)
+            && !self.show_confirmation_dialog.load(Ordering::Relaxed)
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.show_confirmation_dialog.store(true, Ordering::Relaxed);
         }
