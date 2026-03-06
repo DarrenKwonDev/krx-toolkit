@@ -30,6 +30,6 @@ pub struct AccessTokenResponse {
     pub expires_dt: String,
     pub token_type: String,
     pub token: String,
-    pub return_code: String,
+    pub return_code: i32,
     pub return_msg: String,
 }

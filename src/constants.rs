@@ -18,3 +18,5 @@ pub const ORDER_TOOL_VIEWPORT_ID: &str = "order_tool_viewport";
 
 pub const KIWOOM_HTTP_URL_BASE: &str = "https://api.kiwoom.com";
 pub const KIWOOM_WS_URL_BASE: &str = "wss://api.kiwoom.com";
+
+pub const KIWOOM_TOKEN_REFRESH_BEFORE_MIN: i64 = 10;

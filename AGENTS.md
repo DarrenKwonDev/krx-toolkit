@@ -22,15 +22,15 @@
 - [x] 자식 viewport 생성하기
 - [x] viewport layer를 top으로 한번에 올리는 버튼
 - [x] 종료시 confirm 묻기
-- [ ] reqwest client 모듈화
-- [ ] 키움 rest api 등록 및 토큰 refresh 자동화
-- [ ] 키움 connectivity 확인 및 하단 상태바 연동
+- [x] reqwest client 모듈화
+- [x] 키움 rest api 등록 및 토큰 refresh 자동화
 - [ ] 마스터 파일 fetching
 - [ ] 종목 검색 모듈 (호가창을 여러개 띄울 수 있으므로 화면간 동기화는 지원하지 않음)
 - [ ] 로그 모듈
 - [ ] 화면별 로그 파일 생성
 - [ ] 시세 모듈 (어느 한 화면에서 요청한다면, control panel에서 응집하여 구독하고 하위 파일로 카피하여 데이터를 흘려보내는 패턴)
 - [ ] 부모 viewport에 dark/light mode 지원
+- [ ] 키움 connectivity 확인 및 하단 상태바 연동
 - [ ] 플래그에 따라 puppin 기반 통한 퍼포먼스 측정 도구 도입
 
 ## agent

@@ -13,7 +13,7 @@ pub enum KiwoomError {
     // status는 성공이어도 body 에러 처리하는 뉘앙스의 내용을 보냈을 경우
     #[error("api error: code={code:?}, message={message:?}, raw={raw}")]
     ApiError {
-        code: Option<String>,
+        code: i32,
         message: Option<String>,
         raw: String,
     },
