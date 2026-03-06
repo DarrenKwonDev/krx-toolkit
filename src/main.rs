@@ -17,8 +17,6 @@ fn main() -> eframe::Result {
     dotenvy::dotenv().ok();
 
     let rust_log = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_owned());
-    let app_key = std::env::var("KIWOOM_APP_KEY").expect("app key missing in .env");
-    let secret_key = std::env::var("KIWOOM_SECRET_KEY").expect("secret_key missing in .env");
 
     // SAFETY: we call this from the main thread without any other threads running.
     #[expect(unsafe_code)]
