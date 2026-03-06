@@ -16,7 +16,8 @@ pub struct MyApp {
     // ----viewport 상태 변수----
     show_settings_viewport: Arc<AtomicBool>,
     show_account_viewport: Arc<AtomicBool>,
-    show_order_tool_viewport: Arc<AtomicBool>,
+    order_tool_viewports: Vec<(egui::ViewportId, Arc<AtomicBool>, u64)>,
+    next_order_tool_seq: u64,
 }
 
 impl Default for MyApp {
@@ -29,7 +30,8 @@ impl Default for MyApp {
             // ----viewport 상태 변수----
             show_settings_viewport: Default::default(),
             show_account_viewport: Default::default(),
-            show_order_tool_viewport: Default::default(),
+            order_tool_viewports: vec![],
+            next_order_tool_seq: 0,
         }
     }
 }

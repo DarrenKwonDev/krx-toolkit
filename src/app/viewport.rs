@@ -1,4 +1,7 @@
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 
 use eframe::egui;
 
@@ -94,45 +97,62 @@ impl MyApp {
         );
     }
 
+    pub(super) fn open_new_order_tool_viewport(&mut self) {
+        self.next_order_tool_seq += 1;
+        let seq = self.next_order_tool_seq;
+        let id = egui::ViewportId::from_hash_of(format!("{}_{}", ORDER_TOOL_VIEWPORT_ID, self.next_order_tool_seq));
+        let open = Arc::new(AtomicBool::new(true));
+        self.order_tool_viewports.push((id, open, seq));
+
+        // 열린 창 리스트에 추가
+        if !self.opened_viewports.contains(&id) {
+            self.opened_viewports.push(id);
+        }
+    }
+
     pub(super) fn render_order_tool_viewport(&mut self, ctx: &egui::Context) {
-        let show_settings = Arc::clone(&self.show_order_tool_viewport); // 변경이 필요한 경우
-        let viewport_id = egui::ViewportId::from_hash_of(ORDER_TOOL_VIEWPORT_ID);
-        let is_opened = self.show_order_tool_viewport.load(Ordering::Relaxed); // snapshot
+        let viewports = self.order_tool_viewports.clone();
 
-        if !is_opened {
-            self.opened_viewports.retain(|id| *id != viewport_id);
-            return;
+        for (viewport_id, is_open, seq) in viewports {
+            if !is_open.load(Ordering::Relaxed) {
+                continue;
+            }
+            if !self.opened_viewports.contains(&viewport_id) {
+                self.opened_viewports.push(viewport_id);
+            }
+
+            let open_for_child = Arc::clone(&is_open);
+            let win_num = self.next_order_tool_seq.clone();
+            ctx.show_viewport_deferred(
+                viewport_id,
+                egui::ViewportBuilder::default()
+                    .with_title(format!("{}#{}", "주문도구", seq))
+                    .with_inner_size([ORDER_TOOL_VIEWPORT_W, ORDER_TOOL_VIEWPORT_H]),
+                move |child_ctx, class| {
+                    if class == egui::ViewportClass::Embedded {
+                        egui::Window::new("주문도구").show(child_ctx, |ui| {
+                            ui.label("settings placeholder");
+                        });
+                    } else {
+                        egui::CentralPanel::default().show(child_ctx, |ui| {
+                            _debug_check_rect(ui);
+                        });
+                    }
+                    if child_ctx.input(|i| i.viewport().close_requested()) {
+                        open_for_child.store(false, Ordering::Relaxed);
+                    }
+                },
+            );
         }
 
-        // --------------
-
-        if !self.opened_viewports.contains(&viewport_id) {
-            self.opened_viewports.push(viewport_id);
-        }
-
-        ctx.show_viewport_deferred(
-            viewport_id,
-            egui::ViewportBuilder::default()
-                .with_title("주문도구")
-                .with_inner_size([ORDER_TOOL_VIEWPORT_W, ORDER_TOOL_VIEWPORT_H]),
-            move |child_ctx, class| {
-                // embedded는 허용하지 않지만 fallback으로 둔다
-                if class == egui::ViewportClass::Embedded {
-                    egui::Window::new("주문도구").show(child_ctx, |ui| {
-                        ui.label("settings placeholder");
-                    });
-                } else {
-                    egui::CentralPanel::default().show(child_ctx, |ui| {
-                        _debug_check_rect(ui);
-                    });
-                }
-
-                // 닫힐 경우 상태 변수 false로 재지정
-                if child_ctx.input(|i| i.viewport().close_requested()) {
-                    show_settings.store(false, Ordering::Relaxed);
-                }
-            },
-        );
+        // 닫혀야 할 viewport를 삭제한다
+        self.order_tool_viewports.retain(|(id, is_open, _)| {
+            let keep = is_open.load(Ordering::Relaxed);
+            if !keep {
+                self.opened_viewports.retain(|opened| *opened != *id);
+            }
+            keep
+        });
     }
 
     pub(super) fn render_exit_confirm_viewport(&mut self, ctx: &egui::Context) {

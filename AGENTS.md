@@ -24,6 +24,9 @@
 - [x] 종료시 confirm 묻기
 - [x] reqwest client 모듈화
 - [x] 키움 rest api 등록 및 토큰 refresh 자동화
+- [x] 멀티창 기능
+- [ ] 현재 계좌 fetching 및 예수금 
+- [ ] 마스터 파일 fetching
 - [ ] 마스터 파일 fetching
 - [ ] 종목 검색 모듈 (호가창을 여러개 띄울 수 있으므로 화면간 동기화는 지원하지 않음)
 - [ ] 로그 모듈
