@@ -28,7 +28,7 @@ pub struct KiwoomApi {
 }
 
 impl KiwoomApi {
-    pub fn new() -> Result<Self, KiwoomError> {
+    pub async fn new() -> Result<Self, KiwoomError> {
         let app_key = std::env::var("KIWOOM_APP_KEY").expect("app key missing in .env");
         let secret_key = std::env::var("KIWOOM_SECRET_KEY").expect("secret_key missing in .env");
         let client = Self::get_kiwoom_http_client()?;
@@ -46,15 +46,12 @@ impl KiwoomApi {
             refresh_lock: Mutex::new(()),
         };
 
-        // CAUTION: create runtime is expensive. should called only once when app booting
-        let rt = tokio::runtime::Runtime::new().expect("tokio runtime create failed");
-        let token_resp = rt.block_on(api.get_token())?;
-
-        rt.block_on(async {
+        let token_resp = api.get_token().await?;
+        {
             let mut state = api.token_state.write().await;
             state.token = Some(token_resp.token);
             state.token_exp = token_resp.expires_dt;
-        });
+        }
 
         Ok(api)
     }
@@ -244,7 +241,7 @@ mod test {
     async fn create_kiwoomapi_and_fetch_token_integration() {
         let _ = dotenvy::dotenv();
 
-        let api = KiwoomApi::new().expect("failed to create kiwoom api");
+        let api = KiwoomApi::new().await.expect("failed to create kiwoom api");
         let state = api.token_state.read().await;
 
         assert!(state.token.is_some());

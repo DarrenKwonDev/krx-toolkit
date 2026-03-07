@@ -25,6 +25,7 @@
 - [x] reqwest client 모듈화
 - [x] 키움 rest api 등록 및 토큰 refresh 자동화
 - [x] 멀티창 기능
+- [ ] 키움 wss 연결
 - [ ] 현재 계좌 fetching 및 예수금 
 - [ ] 마스터 파일 fetching
 - [ ] 마스터 파일 fetching
