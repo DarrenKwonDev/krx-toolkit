@@ -5,8 +5,9 @@ mod app;
 mod constants;
 mod tasks;
 mod theme;
+mod widgets;
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use eframe::egui;
 
@@ -55,6 +56,40 @@ async fn fetch_master_all_pages(api: &KiwoomApi, mrkt_tp: &str) -> Result<Vec<se
     Ok(pages)
 }
 
+fn count_master_records(pages: &[serde_json::Value]) -> usize {
+    let mut seen = HashSet::new();
+    for page in pages {
+        collect_codes(page, &mut seen);
+    }
+    seen.len()
+}
+
+fn collect_codes(v: &serde_json::Value, seen: &mut HashSet<String>) {
+    match v {
+        serde_json::Value::Object(map) => {
+            let code = ["code", "isu_cd", "stk_cd", "shrn_iscd", "isu_srt_cd"]
+                .iter()
+                .find_map(|k| map.get(*k).and_then(|x| x.as_str()))
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+
+            if let Some(code) = code {
+                seen.insert(code.to_owned());
+            }
+
+            for child in map.values() {
+                collect_codes(child, seen);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for child in arr {
+                collect_codes(child, seen);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn bootstrap() {
     dotenvy::dotenv().ok();
 
@@ -76,8 +111,8 @@ fn main() -> eframe::Result {
 
     let master = Arc::new(
         rt.block_on(async {
-            let kospi_pages = fetch_master_all_pages(api.as_ref(), "0").await?;
-            let kosdaq_pages = fetch_master_all_pages(api.as_ref(), "10").await?;
+            let kospi_pages = fetch_master_all_pages(api.as_ref(), "0").await?; // kospi
+            let kosdaq_pages = fetch_master_all_pages(api.as_ref(), "10").await?; // kosdaq
             Ok::<MasterData, String>(MasterData {
                 kospi_pages,
                 kosdaq_pages,
@@ -86,8 +121,13 @@ fn main() -> eframe::Result {
         .expect("master fetch failed"),
     );
 
+    let kospi_count = count_master_records(&master.kospi_pages);
+    let kosdaq_count = count_master_records(&master.kosdaq_pages);
     println!(
-        "[MASTER] loaded into memory: kospi_pages={}, kosdaq_pages={}",
+        "[MASTER] records: kospi={}, kosdaq={}, total={} (pages: kospi={}, kosdaq={})",
+        kospi_count,
+        kosdaq_count,
+        kospi_count + kosdaq_count,
         master.kospi_pages.len(),
         master.kosdaq_pages.len()
     );

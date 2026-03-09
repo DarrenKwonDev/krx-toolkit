@@ -8,10 +8,11 @@ use eframe::egui;
 use super::MyApp;
 use crate::{
     constants::{
-        ACCOUNT_VIEWPORT_H, ACCOUNT_VIEWPORT_ID, ACCOUNT_VIEWPORT_W, ORDER_TOOL_VIEWPORT_H, ORDER_TOOL_VIEWPORT_ID,
-        ORDER_TOOL_VIEWPORT_W, SETTING_VIEWPORT_H, SETTING_VIEWPORT_ID, SETTING_VIEWPORT_W,
+        ACCOUNT_VIEWPORT_H, ACCOUNT_VIEWPORT_ID, ACCOUNT_VIEWPORT_W, ORDER_TOOL_SEARCH_POPUP_W, ORDER_TOOL_VIEWPORT_H,
+        ORDER_TOOL_VIEWPORT_ID, ORDER_TOOL_VIEWPORT_W, SETTING_VIEWPORT_H, SETTING_VIEWPORT_ID, SETTING_VIEWPORT_W,
     },
     theme::_debug_check_rect,
+    widgets::ticker_search::render_ticker_search,
 };
 
 impl MyApp {
@@ -112,6 +113,7 @@ impl MyApp {
 
     pub(super) fn render_order_tool_viewport(&mut self, ctx: &egui::Context) {
         let viewports = self.order_tool_viewports.clone();
+        let master = Arc::clone(&self.master);
 
         for (viewport_id, is_open, seq) in viewports {
             if !is_open.load(Ordering::Relaxed) {
@@ -122,6 +124,7 @@ impl MyApp {
             }
 
             let open_for_child = Arc::clone(&is_open);
+            let master_for_child = Arc::clone(&master);
             ctx.show_viewport_deferred(
                 viewport_id,
                 egui::ViewportBuilder::default()
@@ -134,7 +137,19 @@ impl MyApp {
                         });
                     } else {
                         egui::CentralPanel::default().show(child_ctx, |ui| {
-                            _debug_check_rect(ui);
+                            let output = render_ticker_search(
+                                ui,
+                                child_ctx,
+                                master_for_child.as_ref(),
+                                seq,
+                                ORDER_TOOL_SEARCH_POPUP_W,
+                                30,
+                            );
+
+                            if let Some(selected) = output.selected {
+                                ui.add_space(4.0);
+                                ui.label(format!("선택: {} | {}", selected.code, selected.name));
+                            }
                         });
                     }
                     if child_ctx.input(|i| i.viewport().close_requested()) {
