@@ -12,6 +12,7 @@ use crate::tasks::{
 };
 
 mod control_panel;
+mod order_tool;
 mod viewport;
 
 #[derive(Debug, Clone)]

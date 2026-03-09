@@ -10,7 +10,7 @@ pub const SETTING_VIEWPORT_H: f32 = 220.0;
 pub const ACCOUNT_VIEWPORT_W: f32 = 360.0;
 pub const ACCOUNT_VIEWPORT_H: f32 = 220.0;
 pub const ORDER_TOOL_VIEWPORT_W: f32 = 620.0;
-pub const ORDER_TOOL_VIEWPORT_H: f32 = 360.0;
+pub const ORDER_TOOL_VIEWPORT_H: f32 = 460.0;
 pub const ORDER_TOOL_SEARCH_POPUP_W: f32 = 380.0;
 
 pub const SETTING_VIEWPORT_ID: &str = "settings_viewport";
