@@ -136,7 +136,8 @@ impl MyApp {
                             ui.label("settings placeholder");
                         });
                     } else {
-                        egui::CentralPanel::default().show(child_ctx, |ui| {
+                        egui::TopBottomPanel::top(egui::Id::new(("order_tool_top", seq))).show(child_ctx, |ui| {
+                            // ticker picker
                             let output = render_ticker_search(
                                 ui,
                                 child_ctx,
@@ -150,6 +151,45 @@ impl MyApp {
                                 ui.add_space(4.0);
                                 ui.label(format!("선택: {} | {}", selected.code, selected.name));
                             }
+                        });
+
+                        egui::CentralPanel::default().show(child_ctx, |ui| {
+                            // actual order tools body
+                            let work_rect = ui.available_rect_before_wrap();
+                            let half_w = work_rect.width() * 0.5;
+
+                            let buy_rect = egui::Rect::from_min_max(
+                                work_rect.min,
+                                egui::pos2(work_rect.min.x + half_w, work_rect.max.y),
+                            );
+                            let sell_rect = egui::Rect::from_min_max(
+                                egui::pos2(work_rect.min.x + half_w, work_rect.min.y),
+                                work_rect.max,
+                            );
+
+                            ui.scope_builder(egui::UiBuilder::new().max_rect(buy_rect), |ui| {
+                                egui::Frame::new()
+                                    .fill(egui::Color32::from_rgb(255, 240, 245))
+                                    .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
+                                    .inner_margin(egui::Margin::same(8))
+                                    .show(ui, |ui| {
+                                        ui.vertical(|ui| {
+                                            ui.label("매수 영역");
+                                        });
+                                    });
+                            });
+
+                            ui.scope_builder(egui::UiBuilder::new().max_rect(sell_rect), |ui| {
+                                egui::Frame::new()
+                                    .fill(egui::Color32::from_rgb(235, 245, 255))
+                                    .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
+                                    .inner_margin(egui::Margin::same(8))
+                                    .show(ui, |ui| {
+                                        ui.vertical(|ui| {
+                                            ui.label("매도/청산/취소 영역");
+                                        });
+                                    });
+                            });
                         });
                     }
                     if child_ctx.input(|i| i.viewport().close_requested()) {
