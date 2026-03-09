@@ -15,7 +15,7 @@ use crate::{
         http::KiwoomApi,
         ws::{WsRegData, ws_type},
     },
-    app::MyApp,
+    app::{MasterData, MyApp},
     constants::{CONTROL_PANEL_HEIGHT, CONTROL_PANEL_WIDTH},
     tasks::{
         rest_task::spawn_rest_task,
@@ -23,6 +23,37 @@ use crate::{
     },
     theme::{configure_fonts, configure_sharp_style},
 };
+
+async fn fetch_master_all_pages(api: &KiwoomApi, mrkt_tp: &str) -> Result<Vec<serde_json::Value>, String> {
+    let mut pages = Vec::new();
+    let mut cont_yn: Option<String> = None;
+    let mut next_key: Option<String> = None;
+
+    loop {
+        let page = api
+            .fetch_master_stock(mrkt_tp, cont_yn.as_deref(), next_key.as_deref())
+            .await
+            .map_err(|e| format!("fetch_master_stock failed(mrkt_tp={mrkt_tp}): {e}"))?;
+
+        pages.push(page.body);
+
+        let should_continue = page
+            .cont_yn
+            .as_deref()
+            .map(|v| v.trim().eq_ignore_ascii_case("Y"))
+            .unwrap_or(false)
+            && page.next_key.is_some();
+
+        if !should_continue {
+            break;
+        }
+
+        cont_yn = page.cont_yn;
+        next_key = page.next_key;
+    }
+
+    Ok(pages)
+}
 
 fn bootstrap() {
     dotenvy::dotenv().ok();
@@ -42,6 +73,24 @@ fn main() -> eframe::Result {
 
     let rt = Arc::new(tokio::runtime::Runtime::new().expect("tokio runtime create failed"));
     let api = Arc::new(rt.block_on(KiwoomApi::new()).expect("kiwoom api init failed"));
+
+    let master = Arc::new(
+        rt.block_on(async {
+            let kospi_pages = fetch_master_all_pages(api.as_ref(), "0").await?;
+            let kosdaq_pages = fetch_master_all_pages(api.as_ref(), "10").await?;
+            Ok::<MasterData, String>(MasterData {
+                kospi_pages,
+                kosdaq_pages,
+            })
+        })
+        .expect("master fetch failed"),
+    );
+
+    println!(
+        "[MASTER] loaded into memory: kospi_pages={}, kosdaq_pages={}",
+        master.kospi_pages.len(),
+        master.kosdaq_pages.len()
+    );
 
     let ws_channels = spawn_ws_task(&rt, Arc::clone(&api));
     let rest_channels = spawn_rest_task(&rt, Arc::clone(&api));
@@ -81,6 +130,7 @@ fn main() -> eframe::Result {
                 ws_channels.from_ws_data_rx,
                 rest_channels.from_ui_rest_cmd_tx,
                 rest_channels.from_rest_data_rx,
+                Arc::clone(&master),
             )))
         }),
     )

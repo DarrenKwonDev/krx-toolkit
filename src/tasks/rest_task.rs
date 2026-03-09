@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use serde_json::Value;
 use tokio::sync::mpsc;
 
 use crate::api::kiwoom::http::KiwoomApi;
@@ -7,13 +8,25 @@ use crate::api::kiwoom::http::KiwoomApi;
 #[derive(Debug, Clone)]
 pub enum RestCommand {
     AccessToken { request_id: u64 },
+    FetchMasterStock { request_id: u64, mrkt_tp: String },
     Shutdown,
 }
 
 #[derive(Debug, Clone)]
 pub enum RestEvent {
-    AccessToken { request_id: u64, token: String },
-    Error { request_id: Option<u64>, message: String },
+    AccessToken {
+        request_id: u64,
+        token: String,
+    },
+    MasterStock {
+        request_id: u64,
+        pages: Vec<Value>,
+        total_pages: usize,
+    },
+    Error {
+        request_id: Option<u64>,
+        message: String,
+    },
     Stopped,
 }
 
@@ -52,10 +65,51 @@ async fn run_rest_worker(
                     });
                 }
             },
+            RestCommand::FetchMasterStock { request_id, mrkt_tp } => {
+                let mut pages: Vec<Value> = Vec::new();
+                let mut cont_yn: Option<String> = None;
+                let mut next_key: Option<String> = None;
+
+                loop {
+                    let page = match api
+                        .fetch_master_stock(&mrkt_tp, cont_yn.as_deref(), next_key.as_deref())
+                        .await
+                    {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let _ = from_rest_data_tx.send(RestEvent::Error {
+                                request_id: Some(request_id),
+                                message: format!("fetch_master_stock failed: {e}"),
+                            });
+                            break;
+                        }
+                    };
+
+                    pages.push(page.body);
+
+                    let continue_next = should_continue(page.cont_yn.as_deref()) && page.next_key.is_some();
+                    if !continue_next {
+                        let total_pages = pages.len();
+                        let _ = from_rest_data_tx.send(RestEvent::MasterStock {
+                            request_id,
+                            pages,
+                            total_pages,
+                        });
+                        break;
+                    }
+
+                    cont_yn = page.cont_yn;
+                    next_key = page.next_key;
+                }
+            }
             RestCommand::Shutdown => {
                 let _ = from_rest_data_tx.send(RestEvent::Stopped);
                 break;
             }
         }
     }
+}
+
+fn should_continue(cont_yn: Option<&str>) -> bool {
+    cont_yn.map(|v| v.trim().eq_ignore_ascii_case("Y")).unwrap_or(false)
 }

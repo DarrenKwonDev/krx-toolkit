@@ -14,6 +14,12 @@ use crate::tasks::{
 mod control_panel;
 mod viewport;
 
+#[derive(Debug, Clone)]
+pub struct MasterData {
+    pub kospi_pages: Vec<serde_json::Value>,
+    pub kosdaq_pages: Vec<serde_json::Value>,
+}
+
 pub struct MyApp {
     show_confirmation_dialog: Arc<AtomicBool>,
     allowed_to_close: Arc<AtomicBool>,
@@ -24,6 +30,7 @@ pub struct MyApp {
     ws_data_rx: mpsc::UnboundedReceiver<WsEvent>,
     rest_cmd_tx: mpsc::UnboundedSender<RestCommand>,
     rest_data_rx: mpsc::UnboundedReceiver<RestEvent>,
+    master: Arc<MasterData>,
     // ----viewport 상태 변수----
     show_settings_viewport: Arc<AtomicBool>,
     show_account_viewport: Arc<AtomicBool>,
@@ -41,6 +48,7 @@ impl MyApp {
         ws_data_rx: mpsc::UnboundedReceiver<WsEvent>,
         rest_cmd_tx: mpsc::UnboundedSender<RestCommand>,
         rest_data_rx: mpsc::UnboundedReceiver<RestEvent>,
+        master: Arc<MasterData>,
     ) -> Self {
         Self {
             show_confirmation_dialog: Default::default(),
@@ -52,6 +60,7 @@ impl MyApp {
             ws_data_rx,
             rest_cmd_tx,
             rest_data_rx,
+            master,
             // ----viewport 상태 변수----
             show_settings_viewport: Default::default(),
             show_account_viewport: Default::default(),

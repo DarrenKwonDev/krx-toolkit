@@ -11,6 +11,13 @@ use crate::{
     },
     constants::{KIWOOM_HTTP_URL_BASE, KIWOOM_TOKEN_REFRESH_BEFORE_MIN},
 };
+
+#[derive(Debug, Clone)]
+pub struct MasterStockPage {
+    pub body: serde_json::Value,
+    pub cont_yn: Option<String>,
+    pub next_key: Option<String>,
+}
 #[derive(Debug, Clone)]
 struct TokenState {
     token: Option<String>,
@@ -62,6 +69,60 @@ impl KiwoomApi {
         let state = self.token_state.read().await;
         state.token.clone().ok_or_else(|| KiwoomError::Decode {
             raw: "access token missing after ensure_token".to_owned(),
+        })
+    }
+
+    pub async fn fetch_master_stock(
+        &self,
+        mrkt_tp: &str,
+        cont_yn: Option<&str>,
+        next_key: Option<&str>,
+    ) -> Result<MasterStockPage, KiwoomError> {
+        let token = self.access_token().await?;
+        let mut req = self
+            .client
+            .post(self.url(routes::종목정보))
+            .header("authorization", format!("Bearer {token}"))
+            .header("api-id", "ka10099")
+            .json(&serde_json::json!({ "mrkt_tp": mrkt_tp }));
+        if let Some(v) = cont_yn {
+            req = req.header("cont-yn", v);
+        }
+        if let Some(v) = next_key {
+            req = req.header("next-key", v);
+        }
+        let resp = req.send().await.map_err(KiwoomError::Transport)?;
+        let status = resp.status();
+        let resp_cont_yn = resp
+            .headers()
+            .get("cont-yn")
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned);
+        let resp_next_key = resp
+            .headers()
+            .get("next-key")
+            .and_then(|v| v.to_str().ok())
+            .map(ToOwned::to_owned);
+        let text = resp.text().await.map_err(KiwoomError::Transport)?;
+        if !status.is_success() {
+            return Err(KiwoomError::HttpStatus { status, body: text });
+        }
+        let body =
+            serde_json::from_str::<serde_json::Value>(&text).map_err(|_| KiwoomError::Decode { raw: text.clone() })?;
+        if let Some(code) = body.get("return_code").and_then(|v| v.as_i64()) {
+            if code != 0 {
+                let msg = body.get("return_msg").and_then(|v| v.as_str()).map(ToOwned::to_owned);
+                return Err(KiwoomError::ApiError {
+                    code: code as i32,
+                    message: msg,
+                    raw: text,
+                });
+            }
+        }
+        Ok(MasterStockPage {
+            body,
+            cont_yn: resp_cont_yn,
+            next_key: resp_next_key,
         })
     }
 
