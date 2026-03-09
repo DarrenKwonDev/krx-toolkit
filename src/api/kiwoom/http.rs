@@ -56,6 +56,15 @@ impl KiwoomApi {
         Ok(api)
     }
 
+    pub async fn access_token(&self) -> Result<String, KiwoomError> {
+        self.ensure_token().await?;
+
+        let state = self.token_state.read().await;
+        state.token.clone().ok_or_else(|| KiwoomError::Decode {
+            raw: "access token missing after ensure_token".to_owned(),
+        })
+    }
+
     // --------------------------------
     // private
     // --------------------------------

@@ -122,7 +122,6 @@ impl MyApp {
             }
 
             let open_for_child = Arc::clone(&is_open);
-            let win_num = self.next_order_tool_seq.clone();
             ctx.show_viewport_deferred(
                 viewport_id,
                 egui::ViewportBuilder::default()

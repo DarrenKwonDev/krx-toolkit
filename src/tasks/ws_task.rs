@@ -36,6 +36,7 @@ pub fn spawn_ws_task(rt: &Arc<tokio::runtime::Runtime>, api: Arc<KiwoomApi>) -> 
 
     rt.spawn(run_ws_worker(api, from_ui_cmd_rx, from_ws_data_tx));
 
+    // egui에서는 cmd는 전송하고, data는 받아야 하므로
     WsTaskChannels {
         from_ui_cmd_tx,
         from_ws_data_rx,

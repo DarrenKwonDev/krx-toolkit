@@ -86,7 +86,21 @@ impl MyApp {
                 ui.scope_builder(egui::UiBuilder::new().max_rect(bottom_rect), |ui| {
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.add_space(CONTROL_PANEL_SIDE_MARGIN);
-                        ui.label("[키움] Connection: OK | Token: OK | 12:34:56 (UTC+8)");
+
+                        let conn = if self.ws_connected { "Connected" } else { "Disconnected" };
+                        let login = if self.ws_login_ok { "OK" } else { "Pending/Fail" };
+                        let last_recv_kst = self
+                            .last_ws_recv_at
+                            .map(|t| {
+                                let dt_utc: chrono::DateTime<chrono::Utc> = t.into();
+                                let kst = chrono::FixedOffset::east_opt(9 * 3600).expect("invalid kst offset");
+                                dt_utc.with_timezone(&kst).format("%H:%M:%S").to_string()
+                            })
+                            .unwrap_or_else(|| "--:--:--".to_owned());
+
+                        ui.label(format!(
+                            "[키움] WS: {conn} | Login: {login} | Last recv: {last_recv_kst}"
+                        ));
                     });
                 });
             }); // end Central

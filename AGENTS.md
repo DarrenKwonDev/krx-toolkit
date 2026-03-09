@@ -25,7 +25,9 @@
 - [x] reqwest client 모듈화
 - [x] 키움 rest api 등록 및 토큰 refresh 자동화
 - [x] 멀티창 기능
-- [ ] 키움 wss 연결
+- [x] 키움 wss 연결
+- [x] 키움 wss 연결 후 앱 레벨의 ping 대응
+- [x] 키움 connectivity 확인 및 하단 상태바 연동
 - [ ] 현재 계좌 fetching 및 예수금 
 - [ ] 마스터 파일 fetching
 - [ ] 마스터 파일 fetching
@@ -34,7 +36,7 @@
 - [ ] 화면별 로그 파일 생성
 - [ ] 시세 모듈 (어느 한 화면에서 요청한다면, control panel에서 응집하여 구독하고 하위 파일로 카피하여 데이터를 흘려보내는 패턴)
 - [ ] 부모 viewport에 dark/light mode 지원
-- [ ] 키움 connectivity 확인 및 하단 상태바 연동
+- [ ] 자식 viewport 정렬 기능
 - [ ] 플래그에 따라 puppin 기반 통한 퍼포먼스 측정 도구 도입
 
 ## agent
@@ -44,3 +46,18 @@
 - ../egui/examples에 egui 관련 예시를 찾아볼 수 있음
   - 현 프로젝트는 eframe = "0.33.3" 를 사용하고 있는데 예시는 이전 버전을 사용하고 있어 인터페이스가 다르니 주의.
 - 차트, 호가, 체결 등 HTS 상에서 확인하는 것이 더 효율적인 것은 구현 금지
+
+
+## 특이 로그
+
+
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]261220_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]261220      |03"),
+    "trnm": String("SYSTEM"),
+}
