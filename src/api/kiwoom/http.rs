@@ -41,8 +41,7 @@ impl KiwoomApi {
         let client = Self::get_kiwoom_http_client()?;
 
         let api = Self {
-            base_url: reqwest::Url::parse(KIWOOM_HTTP_URL_BASE)
-                .expect("reqwest url parse failed in KIWOOM_HTTP_URL_BASE"),
+            base_url: reqwest::Url::parse(KIWOOM_HTTP_URL_BASE).expect("reqwest url parse failed in KIWOOM_HTTP_URL_BASE"),
             app_key: app_key,
             secret_key: secret_key,
             client: client,
@@ -83,7 +82,7 @@ impl KiwoomApi {
             .client
             .post(self.url(routes::종목정보))
             .header("authorization", format!("Bearer {token}"))
-            .header("api-id", "ka10099")
+            .header("api-id", tr::종목정보리스트)
             .json(&serde_json::json!({ "mrkt_tp": mrkt_tp }));
         if let Some(v) = cont_yn {
             req = req.header("cont-yn", v);
@@ -260,6 +259,12 @@ mod routes {
     pub const 계좌: &str = "/api/dostk/acnt";
     pub const 종목정보: &str = "/api/dostk/stkinfo";
     pub const 주문: &str = "/api/dostk/ordr";
+}
+
+mod tr {
+    pub const 계좌평가현황요청: &str = "kt00004"; // 누적손익률
+    pub const 당일실현손익상세요청: &str = "ka10077"; // trade 별 실현 손익/수익률
+    pub const 종목정보리스트: &str = "ka10099"; // 마스터
 }
 
 #[cfg(test)]
