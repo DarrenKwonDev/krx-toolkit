@@ -9,12 +9,15 @@ pub const SETTING_VIEWPORT_W: f32 = 360.0;
 pub const SETTING_VIEWPORT_H: f32 = 220.0;
 pub const ACCOUNT_VIEWPORT_W: f32 = 360.0;
 pub const ACCOUNT_VIEWPORT_H: f32 = 220.0;
+pub const EMERGENCY_ORDER_VIEWPORT_W: f32 = 360.0;
+pub const EMERGENCY_ORDER_VIEWPORT_H: f32 = 220.0;
 pub const ORDER_TOOL_VIEWPORT_W: f32 = 620.0;
 pub const ORDER_TOOL_VIEWPORT_H: f32 = 460.0;
 pub const ORDER_TOOL_SEARCH_POPUP_W: f32 = 380.0;
 
 pub const SETTING_VIEWPORT_ID: &str = "settings_viewport";
 pub const ACCOUNT_VIEWPORT_ID: &str = "account_viewport";
+pub const EMERGENCY_ORDER_VIEWPORT_ID: &str = "emergency_order_viewport";
 pub const ORDER_TOOL_VIEWPORT_ID: &str = "order_tool_viewport";
 
 pub const KIWOOM_HTTP_URL_BASE: &str = "https://api.kiwoom.com";

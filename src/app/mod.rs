@@ -12,7 +12,7 @@ use crate::tasks::{
 };
 
 mod control_panel;
-mod order_tool;
+mod order_normal;
 mod viewport;
 
 #[derive(Debug, Clone)]
@@ -35,6 +35,7 @@ pub struct MyApp {
     // ----viewport 상태 변수----
     show_settings_viewport: Arc<AtomicBool>,
     show_account_viewport: Arc<AtomicBool>,
+    show_emergency_order_viewport: Arc<AtomicBool>,
     order_tool_viewports: Vec<(egui::ViewportId, Arc<AtomicBool>, u64)>,
     next_order_tool_seq: u64,
     // ----하단 바 상태----
@@ -65,6 +66,7 @@ impl MyApp {
             // ----viewport 상태 변수----
             show_settings_viewport: Default::default(),
             show_account_viewport: Default::default(),
+            show_emergency_order_viewport: Default::default(),
             order_tool_viewports: vec![],
             next_order_tool_seq: 0,
             ws_connected: false,
@@ -121,6 +123,7 @@ impl eframe::App for MyApp {
         // setting viewport
         self.render_settings_viewport(ctx);
         self.render_account_viewport(ctx);
+        self.render_emergency_order_viewport(ctx);
         self.render_order_tool_viewport(ctx);
 
         self.render_exit_confirm_viewport(ctx);

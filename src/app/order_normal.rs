@@ -17,7 +17,7 @@ const BUY_PRICE_TICK_OFFSETS: [i32; 5] = [-2, -1, 0, 1, 2];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
 const DEFAULT_BUY_PRICE_TICK_OFFSET: i32 = 0;
 
-pub(super) fn render_order_tool_body(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
     let work_rect = ui.available_rect_before_wrap();
     let half_h = work_rect.height() * 0.5;
 
@@ -50,8 +50,36 @@ pub(super) fn render_order_tool_body(ui: &mut egui::Ui, ctx: &egui::Context, seq
                 ui.set_min_size(ui.available_size());
                 ui.vertical(|ui| {
                     ui.label(egui::RichText::new("매도/청산/취소 영역").strong());
+                    ui.add_space(6.0);
+                    render_sell_rules_panel(ui, ctx, seq);
                 });
             });
+    });
+}
+
+fn render_sell_rules_panel(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+    render_take_profit_section(ui, ctx, seq);
+    ui.add_space(6.0);
+    render_breakeven_section(ui, ctx, seq);
+    ui.add_space(6.0);
+    render_stop_loss_section(ui, ctx, seq);
+}
+
+fn render_take_profit_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("[자동] 익절 조건").strong());
+    });
+}
+
+fn render_breakeven_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("[자동] 본절 조건").strong());
+    });
+}
+
+fn render_stop_loss_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
+    ui.group(|ui| {
+        ui.label(egui::RichText::new("[자동] 손절 조건").strong());
     });
 }
 

@@ -40,6 +40,12 @@ impl MyApp {
                             self.show_account_viewport.store(true, Ordering::Relaxed);
                         }
                         if ui
+                            .add_sized(top_left_btn_size, egui::Button::new("주문[긴급]"))
+                            .clicked()
+                        {
+                            self.show_emergency_order_viewport.store(true, Ordering::Relaxed);
+                        }
+                        if ui
                             .add_sized(top_left_btn_size, egui::Button::new("주문[일반]"))
                             .clicked()
                         {

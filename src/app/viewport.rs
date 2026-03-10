@@ -6,10 +6,11 @@ use std::sync::{
 use eframe::egui;
 
 use super::MyApp;
-use super::order_tool::render_order_tool_body;
+use super::order_normal::render_order_normal_body;
 use crate::{
     constants::{
-        ACCOUNT_VIEWPORT_H, ACCOUNT_VIEWPORT_ID, ACCOUNT_VIEWPORT_W, ORDER_TOOL_SEARCH_POPUP_W, ORDER_TOOL_VIEWPORT_H,
+        ACCOUNT_VIEWPORT_H, ACCOUNT_VIEWPORT_ID, ACCOUNT_VIEWPORT_W, EMERGENCY_ORDER_VIEWPORT_H,
+        EMERGENCY_ORDER_VIEWPORT_ID, EMERGENCY_ORDER_VIEWPORT_W, ORDER_TOOL_SEARCH_POPUP_W, ORDER_TOOL_VIEWPORT_H,
         ORDER_TOOL_VIEWPORT_ID, ORDER_TOOL_VIEWPORT_W, SETTING_VIEWPORT_H, SETTING_VIEWPORT_ID, SETTING_VIEWPORT_W,
     },
     theme::_debug_check_rect,
@@ -112,6 +113,43 @@ impl MyApp {
         }
     }
 
+    pub(super) fn render_emergency_order_viewport(&mut self, ctx: &egui::Context) {
+        let show_emergency = Arc::clone(&self.show_emergency_order_viewport);
+        let viewport_id = egui::ViewportId::from_hash_of(EMERGENCY_ORDER_VIEWPORT_ID);
+        let is_opened = self.show_emergency_order_viewport.load(Ordering::Relaxed);
+
+        if !is_opened {
+            self.opened_viewports.retain(|id| *id != viewport_id);
+            return;
+        }
+
+        if !self.opened_viewports.contains(&viewport_id) {
+            self.opened_viewports.push(viewport_id);
+        }
+
+        ctx.show_viewport_deferred(
+            viewport_id,
+            egui::ViewportBuilder::default()
+                .with_title("주문[긴급]")
+                .with_inner_size([EMERGENCY_ORDER_VIEWPORT_W, EMERGENCY_ORDER_VIEWPORT_H]),
+            move |child_ctx, class| {
+                if class == egui::ViewportClass::Embedded {
+                    egui::Window::new("주문[긴급]").show(child_ctx, |ui| {
+                        ui.label("emergency order placeholder");
+                    });
+                } else {
+                    egui::CentralPanel::default().show(child_ctx, |ui| {
+                        _debug_check_rect(ui);
+                    });
+                }
+
+                if child_ctx.input(|i| i.viewport().close_requested()) {
+                    show_emergency.store(false, Ordering::Relaxed);
+                }
+            },
+        );
+    }
+
     pub(super) fn render_order_tool_viewport(&mut self, ctx: &egui::Context) {
         let viewports = self.order_tool_viewports.clone();
         let master = Arc::clone(&self.master);
@@ -156,7 +194,7 @@ impl MyApp {
 
                         // actual order tools body
                         egui::CentralPanel::default().show(child_ctx, |ui| {
-                            render_order_tool_body(ui, child_ctx, seq);
+                            render_order_normal_body(ui, child_ctx, seq);
                         });
                     }
                     if child_ctx.input(|i| i.viewport().close_requested()) {
