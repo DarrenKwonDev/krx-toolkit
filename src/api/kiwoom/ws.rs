@@ -228,8 +228,12 @@ impl KiwoomWs {
     // --------------------------------
 }
 
+#[allow(dead_code)]
 pub mod ws_type {
     pub const 주식체결: &str = "0B";
+    pub const 잔고: &str = "04";
     pub const 주식호가잔량: &str = "0D";
+    pub const 주식시간외호가: &str = "0E";
     pub const 장시작시간: &str = "0s";
+    pub const VI발동해제: &str = "0h";
 }
