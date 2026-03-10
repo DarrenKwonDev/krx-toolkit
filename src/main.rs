@@ -5,6 +5,7 @@ mod app;
 mod constants;
 mod tasks;
 mod theme;
+mod utils;
 mod widgets;
 
 use std::{collections::HashSet, sync::Arc};

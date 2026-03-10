@@ -36,15 +36,17 @@ impl MyApp {
                         if ui.add_sized(top_left_btn_size, egui::Button::new("설정")).clicked() {
                             self.show_settings_viewport.store(true, Ordering::Relaxed);
                         }
-                        if ui.add_sized(top_left_btn_size, egui::Button::new("계좌관리")).clicked() {
+                        if ui.add_sized(top_left_btn_size, egui::Button::new("계좌상태")).clicked() {
                             self.show_account_viewport.store(true, Ordering::Relaxed);
                         }
-                        if ui.add_sized(top_left_btn_size, egui::Button::new("주문도구")).clicked() {
-                            // self.show_order_tool_viewport.store(true, Ordering::Relaxed);
+                        if ui
+                            .add_sized(top_left_btn_size, egui::Button::new("주문[일반]"))
+                            .clicked()
+                        {
                             self.open_new_order_tool_viewport();
                         }
+                        // if ui.add_sized(top_left_btn_size, egui::Button::new("빠른호가")).clicked() {}
                         // ui.add_sized(top_left_btn_size, egui::Button::new("주문체결"));
-                        // ui.add_sized(top_left_btn_size, egui::Button::new("빠른호가"));
                         // ui.add_sized(top_left_btn_size, egui::Button::new("잔고손익"));
 
                         ui.add_space(ui.available_width());

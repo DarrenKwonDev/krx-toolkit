@@ -3,7 +3,7 @@ use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message};
 
-use crate::{api::kiwoom::error::KiwoomError, constants::KIWOOM_WS_URL_BASE};
+use crate::{api::kiwoom::error::KiwoomError, constants::KIWOOM_WS_URL_BASE, ts_dbg};
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -110,7 +110,7 @@ impl KiwoomWs {
 
                     if let Some(tr) = v.get("trnm").and_then(serde_json::Value::as_str) {
                         if tr != "PING" {
-                            dbg!(&v); // do not delete
+                            ts_dbg!(&v); // do not delete
                         }
                     }
                     return Ok(v);

@@ -1,6 +1,6 @@
 edition = "2024"
 
-max_width = 120
+max_width = 124
 tab_spaces = 4
 hard_tabs = false
 
