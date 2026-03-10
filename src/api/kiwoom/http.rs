@@ -253,6 +253,7 @@ impl KiwoomApi {
     }
 }
 
+#[allow(dead_code)]
 mod routes {
     pub const 접근토큰발급: &str = "/oauth2/token";
     pub const 접근토큰폐기: &str = "/oauth2/revoke";
@@ -261,6 +262,7 @@ mod routes {
     pub const 주문: &str = "/api/dostk/ordr";
 }
 
+#[allow(dead_code)]
 mod tr {
     pub const 계좌평가현황요청: &str = "kt00004"; // 누적손익률
     pub const 당일실현손익상세요청: &str = "ka10077"; // trade 별 실현 손익/수익률

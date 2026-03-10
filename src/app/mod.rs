@@ -41,7 +41,6 @@ pub struct MyApp {
     // ----하단 바 상태----
     ws_connected: bool,
     ws_login_ok: bool,
-    last_ws_recv_at: Option<std::time::SystemTime>,
 }
 
 impl MyApp {
@@ -71,7 +70,6 @@ impl MyApp {
             next_order_tool_seq: 0,
             ws_connected: false,
             ws_login_ok: false,
-            last_ws_recv_at: None,
         }
     }
 
@@ -83,11 +81,8 @@ impl MyApp {
                 }
                 WsEvent::LoginAck { ok, .. } => {
                     self.ws_login_ok = ok;
-                    self.last_ws_recv_at = Some(std::time::SystemTime::now());
                 }
-                WsEvent::Raw(_) => {
-                    self.last_ws_recv_at = Some(std::time::SystemTime::now());
-                }
+                WsEvent::Raw(_) => {}
                 WsEvent::Error(_) => {
                     self.ws_connected = false;
                     self.ws_login_ok = false;

@@ -16,31 +16,34 @@ const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
 const BUY_PRICE_TICK_OFFSETS: [i32; 5] = [-2, -1, 0, 1, 2];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
 const DEFAULT_BUY_PRICE_TICK_OFFSET: i32 = 0;
+const DEFAULT_TAKE_PROFIT_PCT: i32 = 5;
 
 pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
-    let work_rect = ui.available_rect_before_wrap();
-    let half_h = work_rect.height() * 0.5;
-
-    let buy_rect = egui::Rect::from_min_max(work_rect.min, egui::pos2(work_rect.max.x, work_rect.min.y + half_h));
-    let sell_rect = egui::Rect::from_min_max(egui::pos2(work_rect.min.x, work_rect.min.y + half_h), work_rect.max);
-
-    ui.scope_builder(egui::UiBuilder::new().max_rect(buy_rect), |ui| {
-        egui::Frame::new()
-            .fill(egui::Color32::from_rgb(255, 240, 245))
-            .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
-            .inner_margin(egui::Margin::same(8))
-            .show(ui, |ui| {
-                ui.set_min_size(ui.available_size());
-                ui.vertical(|ui| {
-                    ui.label(egui::RichText::new("매수 영역").strong());
-                    ui.add_space(6.0);
-                    render_once_investment_amount_input(ui, ctx, seq);
-                    ui.add_space(6.0);
-                    render_buy_price_inputs(ui, ctx, seq);
-                });
+    egui::Frame::new()
+        .fill(egui::Color32::from_rgb(255, 240, 245))
+        .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.vertical(|ui| {
+                ui.label(egui::RichText::new("매수 영역").strong());
+                ui.add_space(6.0);
+                render_once_investment_amount_input(ui, ctx, seq);
+                ui.add_space(6.0);
+                render_buy_price_inputs(ui, ctx, seq);
+                ui.add_space(10.0);
+                ui.separator();
+                ui.add_space(6.0);
+                let buy_btn = ui.add_sized([80.0, 24.0], egui::Button::new("매수 시행"));
+                if buy_btn.clicked() {
+                    // manual buy entry point
+                }
             });
-    });
+        });
 
+    ui.add_space(6.0);
+
+    let sell_rect = ui.available_rect_before_wrap();
     ui.scope_builder(egui::UiBuilder::new().max_rect(sell_rect), |ui| {
         egui::Frame::new()
             .fill(egui::Color32::from_rgb(235, 245, 255))
@@ -48,7 +51,7 @@ pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, s
             .inner_margin(egui::Margin::same(8))
             .show(ui, |ui| {
                 ui.set_min_size(ui.available_size());
-                ui.vertical(|ui| {
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                     ui.label(egui::RichText::new("매도/청산/취소 영역").strong());
                     ui.add_space(6.0);
                     render_sell_rules_panel(ui, ctx, seq);
@@ -65,21 +68,126 @@ fn render_sell_rules_panel(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
     render_stop_loss_section(ui, ctx, seq);
 }
 
-fn render_take_profit_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
-    ui.group(|ui| {
-        ui.label(egui::RichText::new("[자동] 익절 조건").strong());
+fn render_take_profit_section(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+    let trade_enabled_id = egui::Id::new(("order_normal_take_profit_trade_enabled", seq));
+    let trade_pct_id = egui::Id::new(("order_normal_take_profit_trade_pct", seq));
+    let trade_pct_draft_id = egui::Id::new(("order_normal_take_profit_trade_pct_draft", seq));
+    let trade_amount_id = egui::Id::new(("order_normal_take_profit_trade_amount", seq));
+    let trade_amount_draft_id = egui::Id::new(("order_normal_take_profit_trade_amount_draft", seq));
+
+    let mut trade_enabled = ctx
+        .data_mut(|d| d.get_persisted::<bool>(trade_enabled_id))
+        .unwrap_or(false);
+    let mut trade_pct = ctx
+        .data_mut(|d| d.get_persisted::<i32>(trade_pct_id))
+        .unwrap_or(DEFAULT_TAKE_PROFIT_PCT)
+        .clamp(0, 100);
+    let mut trade_pct_draft = ctx
+        .data_mut(|d| d.get_persisted::<String>(trade_pct_draft_id))
+        .unwrap_or_else(|| trade_pct.to_string());
+    let mut trade_amount = ctx.data_mut(|d| d.get_persisted::<u64>(trade_amount_id)).unwrap_or(0);
+    let mut trade_amount_draft = ctx
+        .data_mut(|d| d.get_persisted::<String>(trade_amount_draft_id))
+        .unwrap_or_else(|| trade_amount.to_string());
+
+    egui::Frame::group(ui.style())
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(egui::RichText::new("[자동] 익절 조건").strong());
+
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut trade_enabled, "trade당 이익");
+                ui.label("+");
+                ui.add_enabled_ui(trade_enabled, |ui| {
+                    render_percent_text_input(ui, &mut trade_pct, &mut trade_pct_draft);
+                    ui.label("%");
+                    ui.label("OR");
+                    render_krw_text_input(ui, &mut trade_amount, &mut trade_amount_draft);
+                    ui.label("원");
+                });
+            });
+        });
+
+    trade_pct = trade_pct.clamp(0, 100);
+
+    ctx.data_mut(|d| {
+        d.insert_persisted(trade_enabled_id, trade_enabled);
+        d.insert_persisted(trade_pct_id, trade_pct);
+        d.insert_persisted(trade_pct_draft_id, trade_pct_draft);
+        d.insert_persisted(trade_amount_id, trade_amount);
+        d.insert_persisted(trade_amount_draft_id, trade_amount_draft);
     });
 }
 
-fn render_breakeven_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
-    ui.group(|ui| {
-        ui.label(egui::RichText::new("[자동] 본절 조건").strong());
+fn render_breakeven_section(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+    let qty_opposite_enabled_id = egui::Id::new(("order_normal_breakeven_qty_opposite_enabled", seq));
+    let mut qty_opposite_enabled = ctx
+        .data_mut(|d| d.get_persisted::<bool>(qty_opposite_enabled_id))
+        .unwrap_or(false);
+
+    egui::Frame::group(ui.style())
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(egui::RichText::new("[자동] 본절 조건").strong());
+            ui.checkbox(&mut qty_opposite_enabled, "잔량 기준 반대 매매");
+        });
+
+    ctx.data_mut(|d| {
+        d.insert_persisted(qty_opposite_enabled_id, qty_opposite_enabled);
     });
 }
 
-fn render_stop_loss_section(ui: &mut egui::Ui, _ctx: &egui::Context, _seq: u64) {
-    ui.group(|ui| {
-        ui.label(egui::RichText::new("[자동] 손절 조건").strong());
+fn render_stop_loss_section(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+    let trade_enabled_id = egui::Id::new(("order_normal_stop_loss_trade_enabled", seq));
+    let trade_pct_id = egui::Id::new(("order_normal_stop_loss_trade_pct", seq));
+    let trade_pct_draft_id = egui::Id::new(("order_normal_stop_loss_trade_pct_draft", seq));
+    let trade_amount_id = egui::Id::new(("order_normal_stop_loss_trade_amount", seq));
+    let trade_amount_draft_id = egui::Id::new(("order_normal_stop_loss_trade_amount_draft", seq));
+
+    let mut trade_enabled = ctx
+        .data_mut(|d| d.get_persisted::<bool>(trade_enabled_id))
+        .unwrap_or(false);
+    let mut trade_pct = ctx
+        .data_mut(|d| d.get_persisted::<i32>(trade_pct_id))
+        .unwrap_or(DEFAULT_TAKE_PROFIT_PCT)
+        .clamp(0, 100);
+    let mut trade_pct_draft = ctx
+        .data_mut(|d| d.get_persisted::<String>(trade_pct_draft_id))
+        .unwrap_or_else(|| trade_pct.to_string());
+    let mut trade_amount = ctx.data_mut(|d| d.get_persisted::<u64>(trade_amount_id)).unwrap_or(0);
+    let mut trade_amount_draft = ctx
+        .data_mut(|d| d.get_persisted::<String>(trade_amount_draft_id))
+        .unwrap_or_else(|| trade_amount.to_string());
+
+    egui::Frame::group(ui.style())
+        .inner_margin(egui::Margin::same(8))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.label(egui::RichText::new("[자동] 손절 조건").strong());
+
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut trade_enabled, "trade당 손실");
+                ui.label("-");
+                ui.add_enabled_ui(trade_enabled, |ui| {
+                    render_percent_text_input(ui, &mut trade_pct, &mut trade_pct_draft);
+                    ui.label("%");
+                    ui.label("OR");
+                    render_krw_text_input(ui, &mut trade_amount, &mut trade_amount_draft);
+                    ui.label("원");
+                });
+            });
+        });
+
+    trade_pct = trade_pct.clamp(0, 100);
+
+    ctx.data_mut(|d| {
+        d.insert_persisted(trade_enabled_id, trade_enabled);
+        d.insert_persisted(trade_pct_id, trade_pct);
+        d.insert_persisted(trade_pct_draft_id, trade_pct_draft);
+        d.insert_persisted(trade_amount_id, trade_amount);
+        d.insert_persisted(trade_amount_draft_id, trade_amount_draft);
     });
 }
 
@@ -175,4 +283,47 @@ fn buy_price_ref_level_label(code: i8) -> &'static str {
         .iter()
         .find_map(|(level_code, label)| (*level_code == code).then_some(*label))
         .unwrap_or("매수1호가")
+}
+
+fn render_percent_text_input(ui: &mut egui::Ui, value: &mut i32, draft: &mut String) {
+    let response = ui.add_sized([48.0, 20.0], egui::TextEdit::singleline(draft));
+
+    let commit_by_enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+    let commit_by_focus_out = response.lost_focus() && !response.has_focus();
+
+    if commit_by_enter || commit_by_focus_out {
+        if let Some(parsed) = parse_percent(draft) {
+            *value = parsed;
+            *draft = value.to_string();
+        } else {
+            *draft = value.to_string();
+        }
+    }
+}
+
+fn parse_percent(raw: &str) -> Option<i32> {
+    let normalized = raw.trim().replace(['%', ',', '_', ' '], "");
+    let parsed = normalized.parse::<i32>().ok()?;
+    Some(parsed.clamp(0, 100))
+}
+
+fn render_krw_text_input(ui: &mut egui::Ui, value: &mut u64, draft: &mut String) {
+    let response = ui.add_sized([72.0, 20.0], egui::TextEdit::singleline(draft));
+
+    let commit_by_enter = response.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+    let commit_by_focus_out = response.lost_focus() && !response.has_focus();
+
+    if commit_by_enter || commit_by_focus_out {
+        if let Some(parsed) = parse_krw_amount(draft) {
+            *value = parsed;
+            *draft = value.to_string();
+        } else {
+            *draft = value.to_string();
+        }
+    }
+}
+
+fn parse_krw_amount(raw: &str) -> Option<u64> {
+    let normalized = raw.trim().replace([',', '_', ' '], "");
+    normalized.parse::<u64>().ok()
 }
