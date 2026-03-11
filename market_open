@@ -1,0 +1,1530 @@
+warning: field `token_type` is never read
+  --> src/api/kiwoom/types.rs:31:9
+   |
+29 | pub struct AccessTokenResponse {
+   |            ------------------- field in this struct
+30 |     pub expires_dt: String,
+31 |     pub token_type: String,
+   |         ^^^^^^^^^^
+   |
+   = note: `AccessTokenResponse` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `is_connected` is never used
+  --> src/api/kiwoom/ws.rs:31:12
+   |
+22 | impl KiwoomWs {
+   | ------------- method in this implementation
+...
+31 |     pub fn is_connected(&self) -> bool {
+   |            ^^^^^^^^^^^^
+
+warning: fields `ws_cmd_tx` and `rest_cmd_tx` are never read
+  --> src/app/mod.rs:30:5
+   |
+24 | pub struct MyApp {
+   |            ----- fields in this struct
+...
+30 |     ws_cmd_tx: mpsc::UnboundedSender<WsCommand>,
+   |     ^^^^^^^^^
+31 |     ws_data_rx: mpsc::UnboundedReceiver<WsEvent>,
+32 |     rest_cmd_tx: mpsc::UnboundedSender<RestCommand>,
+   |     ^^^^^^^^^^^
+
+warning: variants `AccessToken`, `FetchMasterStock`, and `Shutdown` are never constructed
+  --> src/tasks/rest_task.rs:10:5
+   |
+ 9 | pub enum RestCommand {
+   |          ----------- variants in this enum
+10 |     AccessToken { request_id: u64 },
+   |     ^^^^^^^^^^^
+11 |     FetchMasterStock { request_id: u64, mrkt_tp: String },
+   |     ^^^^^^^^^^^^^^^^
+12 |     Shutdown,
+   |     ^^^^^^^^
+   |
+   = note: `RestCommand` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `request_id` and `token` are never read
+  --> src/tasks/rest_task.rs:18:9
+   |
+17 |     AccessToken {
+   |     ----------- fields in this variant
+18 |         request_id: u64,
+   |         ^^^^^^^^^^
+19 |         token: String,
+   |         ^^^^^
+   |
+   = note: `RestEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `request_id`, `pages`, and `total_pages` are never read
+  --> src/tasks/rest_task.rs:22:9
+   |
+21 |     MasterStock {
+   |     ----------- fields in this variant
+22 |         request_id: u64,
+   |         ^^^^^^^^^^
+23 |         pages: Vec<Value>,
+   |         ^^^^^
+24 |         total_pages: usize,
+   |         ^^^^^^^^^^^
+   |
+   = note: `RestEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `request_id` and `message` are never read
+  --> src/tasks/rest_task.rs:27:9
+   |
+26 |     Error {
+   |     ----- fields in this variant
+27 |         request_id: Option<u64>,
+   |         ^^^^^^^^^^
+28 |         message: String,
+   |         ^^^^^^^
+   |
+   = note: `RestEvent` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Unregister` and `Shutdown` are never constructed
+  --> src/tasks/ws_task.rs:15:5
+   |
+13 | pub enum WsCommand {
+   |          --------- variants in this enum
+14 |     Register(Vec<WsRegData>),
+15 |     Unregister(Vec<WsRegData>),
+   |     ^^^^^^^^^^
+16 |     Shutdown,
+   |     ^^^^^^^^
+   |
+   = note: `WsCommand` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `raw` is never read
+  --> src/tasks/ws_task.rs:22:26
+   |
+22 |     LoginAck { ok: bool, raw: Value },
+   |     --------             ^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `WsEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `0` is never read
+  --> src/tasks/ws_task.rs:23:9
+   |
+23 |     Raw(Value),
+   |     --- ^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `WsEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+23 -     Raw(Value),
+23 +     Raw(()),
+   |
+
+warning: field `0` is never read
+  --> src/tasks/ws_task.rs:24:11
+   |
+24 |     Error(String),
+   |     ----- ^^^^^^
+   |     |
+   |     field in this variant
+   |
+   = note: `WsEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+   |
+24 -     Error(String),
+24 +     Error(()),
+   |
+
+warning: `krx-toolkit` (bin "krx-toolkit") generated 11 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running `target/debug/krx-toolkit`
+[MASTER] records: kospi=2417, kosdaq=1820, total=4237 (pages: kospi=1, kosdaq=1)
+[2026-03-11 07:26:54.223]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "return_code": Number(0),
+    "return_msg": String(""),
+    "sor_yn": String("Y"),
+    "trnm": String("LOGIN"),
+}
+[2026-03-11 07:26:54.231]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "return_code": Number(0),
+    "return_msg": String(""),
+    "trnm": String("REG"),
+}
+[2026-03-11 07:59:59.967]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("080000"),
+                "214": String("000000"),
+                "215": String("P"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:45:00.579]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("084500"),
+                "214": String("000000"),
+                "215": String("o"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:50:00.081]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085000"),
+                "214": String("000000"),
+                "215": String("Q"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:50:00.294]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085000"),
+                "214": String("001000"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:51:00.286]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085100"),
+                "214": String("000900"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:52:00.331]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085200"),
+                "214": String("000800"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:53:00.287]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085300"),
+                "214": String("000700"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:54:00.294]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085400"),
+                "214": String("000600"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:55:00.314]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085500"),
+                "214": String("000500"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:56:00.291]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085600"),
+                "214": String("000400"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:57:00.202]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085700"),
+                "214": String("000300"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:58:00.199]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085800"),
+                "214": String("000200"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:00.200]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085900"),
+                "214": String("000100"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:10.198]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085910"),
+                "214": String("000050"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:20.196]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085920"),
+                "214": String("000040"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:30.220]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085930"),
+                "214": String("000030"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:40.195]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085940"),
+                "214": String("000020"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 08:59:50.245]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("085950"),
+                "214": String("000010"),
+                "215": String("0"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 09:00:00.196]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("090000"),
+                "214": String("000000"),
+                "215": String("3"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 09:00:29.994]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("090030"),
+                "214": String("000000"),
+                "215": String("R"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 11:18:00.075]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680      |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:18:00.094]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:18:00.480]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:18:00.482]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680      |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:18:00.483]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_NX   |03"),
+    "trnm": String("SYSTEM"),
+}
+2026-03-11 11:31:14.800 krx-toolkit[50979:171520323] TSM AdjustCapsLockLEDForKeyTransitionHandling - _ISSetPhysicalKeyboardCapsLockLED Inhibit
+[2026-03-11 11:48:00.115]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680      |04"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:48:00.132]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_AL   |04"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:48:00.490]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680      |04"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:48:00.491]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_AL   |04"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 11:58:00.088]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009680_NX   |04"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 15:20:00.088]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152000"),
+                "214": String("000000"),
+                "215": String("S"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:20:00.286]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152000"),
+                "214": String("001000"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:21:00.293]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152100"),
+                "214": String("000900"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:22:00.304]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152200"),
+                "214": String("000800"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:23:00.287]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152300"),
+                "214": String("000700"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:24:00.286]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152400"),
+                "214": String("000600"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:25:00.294]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152500"),
+                "214": String("000500"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:26:00.288]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152600"),
+                "214": String("000400"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:27:00.357]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152700"),
+                "214": String("000300"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:28:00.291]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152800"),
+                "214": String("000200"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:00.285]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152900"),
+                "214": String("000100"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:10.369]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152910"),
+                "214": String("000050"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:20.288]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152920"),
+                "214": String("000040"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:30.285]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152930"),
+                "214": String("000030"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:40.280]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152940"),
+                "214": String("000020"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:29:50.292]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("152950"),
+                "214": String("000010"),
+                "215": String("2"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:30:00.079]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153000"),
+                "214": String("000000"),
+                "215": String("T"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:30:00.277]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153000"),
+                "214": String("000000"),
+                "215": String("4"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:30:40.296]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("888888"),
+                "214": String("000000"),
+                "215": String("8"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:35:00.384]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:35:00.481]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("153500"),
+                "214": String("000000"),
+                "215": String("s"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:40:00.083]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154000"),
+                "214": String("000000"),
+                "215": String("U"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:40:00.488]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154000"),
+                "214": String("000000"),
+                "215": String("a"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:00.580]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:00.676]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:00.779]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:00.877]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:00.977]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.084]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.177]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.292]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.392]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.479]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.578]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:01.677]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:02.195]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:02.436]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:02.791]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 15:45:02.892]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("154500"),
+                "214": String("000000"),
+                "215": String("e"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 16:00:00.374]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("160000"),
+                "214": String("000000"),
+                "215": String("b"),
+            },
+        },
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("160000"),
+                "214": String("000000"),
+                "215": String("c"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 16:08:59.959]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009310      |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 16:08:59.959]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]009310_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 16:55:59.888]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]276730_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 16:55:59.918]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]276730      |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 17:11:59.885]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]012340      |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 17:11:59.886]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "code": String("R00000"),
+    "message": String("[장중 거래정지 지정/제개]012340_AL   |03"),
+    "trnm": String("SYSTEM"),
+}
+[2026-03-11 18:00:00.489]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("180000"),
+                "214": String("000000"),
+                "215": String("d"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 18:05:40.294]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("999999"),
+                "214": String("000000"),
+                "215": String("9"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
+[2026-03-11 20:00:00.022]
+[src/api/kiwoom/ws.rs:113:29] &v = Object {
+    "data": Array [
+        Object {
+            "item": String(""),
+            "name": String("장시작시간"),
+            "type": String("0s"),
+            "values": Object {
+                "20": String("200000"),
+                "214": String("000000"),
+                "215": String("V"),
+            },
+        },
+    ],
+    "trnm": String("REAL"),
+}
