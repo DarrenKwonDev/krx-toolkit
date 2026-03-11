@@ -78,12 +78,12 @@ impl MyApp {
         ctx.show_viewport_deferred(
             viewport_id,
             egui::ViewportBuilder::default()
-                .with_title("계좌관리")
+                .with_title("계좌상태")
                 .with_inner_size([ACCOUNT_VIEWPORT_W, ACCOUNT_VIEWPORT_H]),
             move |child_ctx, class| {
                 // embedded는 허용하지 않지만 fallback으로 둔다
                 if class == egui::ViewportClass::Embedded {
-                    egui::Window::new("계좌관리").show(child_ctx, |ui| {
+                    egui::Window::new("계좌상태").show(child_ctx, |ui| {
                         ui.label("settings placeholder");
                     });
                 } else {
