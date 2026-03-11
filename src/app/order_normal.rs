@@ -16,6 +16,8 @@ const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
 const BUY_PRICE_TICK_OFFSETS: [i32; 5] = [-2, -1, 0, 1, 2];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
 const DEFAULT_BUY_PRICE_TICK_OFFSET: i32 = 0;
+const SPLIT_BUY_ROW_COUNT: usize = 3;
+const DEFAULT_SPLIT_BUY_WEIGHT_PCT: i32 = 0;
 const DEFAULT_TAKE_PROFIT_PCT: i32 = 5;
 
 pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
@@ -27,21 +29,22 @@ pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, s
             ui.set_min_width(ui.available_width());
             ui.vertical(|ui| {
                 ui.label(egui::RichText::new("매수 영역").strong());
-                ui.add_space(6.0);
+                ui.add_space(2.0);
                 render_once_investment_amount_input(ui, ctx, seq);
-                ui.add_space(6.0);
+                ui.add_space(2.0);
                 render_buy_price_inputs(ui, ctx, seq);
-                ui.add_space(10.0);
+                ui.add_space(2.0);
+                render_split_buy_rows(ui, ctx, seq);
+                ui.add_space(2.0);
                 ui.separator();
-                ui.add_space(6.0);
-                let buy_btn = ui.add_sized([80.0, 24.0], egui::Button::new("매수 시행"));
-                if buy_btn.clicked() {
-                    // manual buy entry point
+                let buy_all_btn = ui.add_sized([100.0, 24.0], egui::Button::new("일괄 매수 시행"));
+                if buy_all_btn.clicked() {
+                    // manual bulk buy entry point
                 }
             });
         });
 
-    ui.add_space(6.0);
+    ui.add_space(2.0);
 
     let sell_rect = ui.available_rect_before_wrap();
     ui.scope_builder(egui::UiBuilder::new().max_rect(sell_rect), |ui| {
@@ -62,10 +65,18 @@ pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, s
 
 fn render_sell_rules_panel(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
     render_take_profit_section(ui, ctx, seq);
-    ui.add_space(6.0);
+    ui.add_space(2.0);
     render_breakeven_section(ui, ctx, seq);
-    ui.add_space(6.0);
+    ui.add_space(2.0);
     render_stop_loss_section(ui, ctx, seq);
+    ui.add_space(2.0);
+    ui.separator();
+    ui.add_space(2.0);
+
+    let liquidate_btn = ui.add_sized([190.0, 24.0], egui::Button::new("전량 시장가 매도 + 미체결취소"));
+    if liquidate_btn.clicked() {
+        // manual full liquidate + cancel all open orders entry point
+    }
 }
 
 fn render_take_profit_section(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
@@ -251,7 +262,7 @@ fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
     }
 
     ui.horizontal(|ui| {
-        ui.label("매수가격");
+        ui.label("공통 매수가격");
 
         egui::ComboBox::from_id_salt(("order_tool_buy_price_ref_combo", seq))
             .selected_text(buy_price_ref_level_label(ref_level))
@@ -275,6 +286,46 @@ fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
     ctx.data_mut(|d| {
         d.insert_persisted(ref_level_id, ref_level);
         d.insert_persisted(tick_offset_id, tick_offset);
+    });
+}
+
+fn render_split_buy_rows(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+    for row_index in 0..SPLIT_BUY_ROW_COUNT {
+        render_split_buy_row(ui, ctx, seq, row_index);
+        if row_index + 1 < SPLIT_BUY_ROW_COUNT {
+            ui.add_space(4.0);
+        }
+    }
+}
+
+fn render_split_buy_row(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, row_index: usize) {
+    let weight_pct_id = egui::Id::new(("order_tool_split_buy_weight_pct", seq, row_index));
+    let weight_pct_draft_id = egui::Id::new(("order_tool_split_buy_weight_pct_draft", seq, row_index));
+
+    let mut weight_pct = ctx
+        .data_mut(|d| d.get_persisted::<i32>(weight_pct_id))
+        .unwrap_or(DEFAULT_SPLIT_BUY_WEIGHT_PCT)
+        .clamp(0, 100);
+    let mut weight_pct_draft = ctx
+        .data_mut(|d| d.get_persisted::<String>(weight_pct_draft_id))
+        .unwrap_or_else(|| weight_pct.to_string());
+
+    ui.horizontal(|ui| {
+        ui.label(format!("분할매수{}", row_index + 1));
+        render_percent_text_input(ui, &mut weight_pct, &mut weight_pct_draft);
+        ui.label("%");
+
+        let buy_btn = ui.add_sized([80.0, 24.0], egui::Button::new("매수 시행"));
+        if buy_btn.clicked() {
+            // manual split buy entry point
+        }
+    });
+
+    weight_pct = weight_pct.clamp(0, 100);
+
+    ctx.data_mut(|d| {
+        d.insert_persisted(weight_pct_id, weight_pct);
+        d.insert_persisted(weight_pct_draft_id, weight_pct_draft);
     });
 }
 
