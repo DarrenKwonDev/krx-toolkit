@@ -199,36 +199,21 @@ impl MyApp {
                             let selected_code = child_ctx
                                 .data_mut(|d| d.get_persisted::<String>(selected_code_id))
                                 .unwrap_or_default();
-                            let prev_subscribed_id = egui::Id::new(("order_tool_prev_subscribed_code", seq));
-                            let prev_subscribed = child_ctx
-                                .data_mut(|d| d.get_persisted::<String>(prev_subscribed_id))
-                                .unwrap_or_default();
-
-                            if selected_code != prev_subscribed {
-                                if !prev_subscribed.is_empty() {
-                                    let _ = ws_cmd_tx_for_child.send(WsCommand::Unsubscribe {
-                                        subscriber_id: seq,
-                                        topics: vec![WsTopic {
-                                            item: prev_subscribed.clone(),
-                                            ty: ws_type::주식호가잔량.to_owned(),
-                                        }],
-                                    });
-                                }
-
-                                if !selected_code.is_empty() {
-                                    let _ = ws_cmd_tx_for_child.send(WsCommand::Subscribe {
-                                        subscriber_id: seq,
-                                        topics: vec![WsTopic {
-                                            item: selected_code.clone(),
-                                            ty: ws_type::주식호가잔량.to_owned(),
-                                        }],
-                                    });
-                                }
-
-                                child_ctx.data_mut(|d| {
-                                    d.insert_persisted(prev_subscribed_id, selected_code);
-                                });
-                            }
+                            let desired_topics = if selected_code.trim().is_empty() {
+                                Vec::new()
+                            } else {
+                                vec![
+                                    WsTopic {
+                                        item: selected_code.clone(),
+                                        ty: ws_type::주식호가잔량.to_owned(),
+                                    },
+                                    WsTopic {
+                                        item: selected_code.clone(),
+                                        ty: ws_type::주식체결.to_owned(),
+                                    },
+                                ]
+                            };
+                            ws_sync(&ws_cmd_tx_for_child, child_ctx, seq, desired_topics);
                         });
 
                         // actual order tools body
@@ -254,7 +239,7 @@ impl MyApp {
             .retain(|(_, is_open, _)| is_open.load(Ordering::Relaxed));
 
         for (id, seq) in closed {
-            self.unsubscribe_all_for_viewport(seq);
+            self.ws_unsubscribe_all(seq);
             self.opened_viewports.retain(|opened| *opened != id);
         }
     }
@@ -311,4 +296,82 @@ impl MyApp {
             },
         );
     }
+}
+
+fn ws_sync(
+    ws_cmd_tx: &tokio::sync::mpsc::UnboundedSender<WsCommand>,
+    child_ctx: &egui::Context,
+    subscriber_id: u64,
+    desired_topics: Vec<WsTopic>,
+) {
+    let prev_topics_id = egui::Id::new(("order_tool_prev_topics", subscriber_id));
+
+    let prev_topic_keys = child_ctx
+        .data_mut(|d| d.get_persisted::<Vec<String>>(prev_topics_id))
+        .unwrap_or_default();
+
+    let prev_topics = prev_topic_keys
+        .iter()
+        .filter_map(|key| parse_topic_key(key))
+        .collect::<std::collections::HashSet<_>>();
+
+    let next_topics = desired_topics
+        .into_iter()
+        .filter_map(|topic| {
+            let ty = topic.ty.trim();
+            let item = topic.item.trim();
+            if ty.is_empty() || item.is_empty() {
+                None
+            } else {
+                Some(WsTopic {
+                    ty: ty.to_owned(),
+                    item: item.to_owned(),
+                })
+            }
+        })
+        .collect::<std::collections::HashSet<_>>();
+
+    let to_subscribe = next_topics.difference(&prev_topics).cloned().collect::<Vec<_>>();
+    let to_unsubscribe = prev_topics.difference(&next_topics).cloned().collect::<Vec<_>>();
+
+    ws_unsubscribe(ws_cmd_tx, subscriber_id, to_unsubscribe);
+    ws_subscribe(ws_cmd_tx, subscriber_id, to_subscribe);
+
+    let mut next_topic_keys = next_topics.into_iter().map(topic_to_key).collect::<Vec<_>>();
+    next_topic_keys.sort();
+
+    child_ctx.data_mut(|d| {
+        d.insert_persisted(prev_topics_id, next_topic_keys);
+    });
+}
+
+fn ws_subscribe(ws_cmd_tx: &tokio::sync::mpsc::UnboundedSender<WsCommand>, subscriber_id: u64, topics: Vec<WsTopic>) {
+    if topics.is_empty() {
+        return;
+    }
+    let _ = ws_cmd_tx.send(WsCommand::Subscribe { subscriber_id, topics });
+}
+
+fn ws_unsubscribe(ws_cmd_tx: &tokio::sync::mpsc::UnboundedSender<WsCommand>, subscriber_id: u64, topics: Vec<WsTopic>) {
+    if topics.is_empty() {
+        return;
+    }
+    let _ = ws_cmd_tx.send(WsCommand::Unsubscribe { subscriber_id, topics });
+}
+
+fn topic_to_key(topic: WsTopic) -> String {
+    format!("{}|{}", topic.ty, topic.item)
+}
+
+fn parse_topic_key(key: &str) -> Option<WsTopic> {
+    let (ty, item) = key.split_once('|')?;
+    let ty = ty.trim();
+    let item = item.trim();
+    if ty.is_empty() || item.is_empty() {
+        return None;
+    }
+    Some(WsTopic {
+        ty: ty.to_owned(),
+        item: item.to_owned(),
+    })
 }

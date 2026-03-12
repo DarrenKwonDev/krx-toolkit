@@ -80,59 +80,7 @@ impl MyApp {
         }
     }
 
-    pub(super) fn subscribe_topic(&mut self, subscriber_id: u64, ty: &str, item: &str) {
-        let item = item.trim();
-        if item.is_empty() {
-            return;
-        }
-
-        let topic = WsTopic {
-            item: item.to_owned(),
-            ty: ty.to_owned(),
-        };
-        let inserted = self
-            .order_active_topics
-            .entry(subscriber_id)
-            .or_default()
-            .insert(topic.clone());
-        if inserted {
-            let _ = self.ws_cmd_tx.send(WsCommand::Subscribe {
-                subscriber_id,
-                topics: vec![topic],
-            });
-        }
-    }
-
-    pub(super) fn unsubscribe_topic(&mut self, subscriber_id: u64, ty: &str, item: &str) {
-        let item = item.trim();
-        if item.is_empty() {
-            return;
-        }
-
-        let topic = WsTopic {
-            item: item.to_owned(),
-            ty: ty.to_owned(),
-        };
-
-        let mut removed = false;
-        let mut should_remove_entry = false;
-        if let Some(set) = self.order_active_topics.get_mut(&subscriber_id) {
-            removed = set.remove(&topic);
-            should_remove_entry = set.is_empty();
-        }
-        if should_remove_entry {
-            self.order_active_topics.remove(&subscriber_id);
-        }
-
-        if removed {
-            let _ = self.ws_cmd_tx.send(WsCommand::Unsubscribe {
-                subscriber_id,
-                topics: vec![topic],
-            });
-        }
-    }
-
-    pub(super) fn unsubscribe_all_for_viewport(&mut self, subscriber_id: u64) {
+    pub(super) fn ws_unsubscribe_all(&mut self, subscriber_id: u64) {
         let _ = self.ws_cmd_tx.send(WsCommand::UnsubscribeAll { subscriber_id });
         self.order_active_topics.remove(&subscriber_id);
         self.order_selected_codes.remove(&subscriber_id);

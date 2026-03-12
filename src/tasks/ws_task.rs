@@ -28,7 +28,7 @@ pub enum WsCommand {
 #[derive(Debug)]
 pub enum WsEvent {
     Connected,
-    LoginAck { ok: bool, raw: Value },
+    LoginAck { ok: bool, _raw: Value },
     Raw(Value),
     Error(String),
     Disconnected,
