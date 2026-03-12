@@ -8,11 +8,13 @@ use eframe::egui;
 use super::MyApp;
 use super::order_normal::render_order_normal_body;
 use crate::{
+    api::kiwoom::ws::ws_type,
     constants::{
         ACCOUNT_VIEWPORT_H, ACCOUNT_VIEWPORT_ID, ACCOUNT_VIEWPORT_W, EMERGENCY_ORDER_VIEWPORT_H,
         EMERGENCY_ORDER_VIEWPORT_ID, EMERGENCY_ORDER_VIEWPORT_W, ORDER_TOOL_SEARCH_POPUP_W, ORDER_TOOL_VIEWPORT_H,
         ORDER_TOOL_VIEWPORT_ID, ORDER_TOOL_VIEWPORT_W, SETTING_VIEWPORT_H, SETTING_VIEWPORT_ID, SETTING_VIEWPORT_W,
     },
+    tasks::ws_task::{WsCommand, WsTopic},
     theme::_debug_check_rect,
     widgets::ticker_search::render_ticker_search,
 };
@@ -158,12 +160,14 @@ impl MyApp {
             if !is_open.load(Ordering::Relaxed) {
                 continue;
             }
+
             if !self.opened_viewports.contains(&viewport_id) {
                 self.opened_viewports.push(viewport_id);
             }
 
             let open_for_child = Arc::clone(&is_open);
             let master_for_child = Arc::clone(&master);
+            let ws_cmd_tx_for_child = self.ws_cmd_tx.clone();
             ctx.show_viewport_deferred(
                 viewport_id,
                 egui::ViewportBuilder::default()
@@ -186,9 +190,44 @@ impl MyApp {
                                 30,
                             );
 
-                            if let Some(selected) = output.selected {
+                            if let Some(ref selected) = output.selected {
                                 ui.add_space(4.0);
                                 ui.label(format!("선택: {} | {}", selected.code, selected.name));
+                            }
+
+                            let selected_code_id = egui::Id::new(("order_tool_selected_code", seq));
+                            let selected_code = child_ctx
+                                .data_mut(|d| d.get_persisted::<String>(selected_code_id))
+                                .unwrap_or_default();
+                            let prev_subscribed_id = egui::Id::new(("order_tool_prev_subscribed_code", seq));
+                            let prev_subscribed = child_ctx
+                                .data_mut(|d| d.get_persisted::<String>(prev_subscribed_id))
+                                .unwrap_or_default();
+
+                            if selected_code != prev_subscribed {
+                                if !prev_subscribed.is_empty() {
+                                    let _ = ws_cmd_tx_for_child.send(WsCommand::Unsubscribe {
+                                        subscriber_id: seq,
+                                        topics: vec![WsTopic {
+                                            item: prev_subscribed.clone(),
+                                            ty: ws_type::주식호가잔량.to_owned(),
+                                        }],
+                                    });
+                                }
+
+                                if !selected_code.is_empty() {
+                                    let _ = ws_cmd_tx_for_child.send(WsCommand::Subscribe {
+                                        subscriber_id: seq,
+                                        topics: vec![WsTopic {
+                                            item: selected_code.clone(),
+                                            ty: ws_type::주식호가잔량.to_owned(),
+                                        }],
+                                    });
+                                }
+
+                                child_ctx.data_mut(|d| {
+                                    d.insert_persisted(prev_subscribed_id, selected_code);
+                                });
                             }
                         });
 
@@ -205,13 +244,19 @@ impl MyApp {
         }
 
         // 닫혀야 할 viewport를 삭제한다
-        self.order_tool_viewports.retain(|(id, is_open, _)| {
-            let keep = is_open.load(Ordering::Relaxed);
-            if !keep {
-                self.opened_viewports.retain(|opened| *opened != *id);
-            }
-            keep
-        });
+        let closed = self
+            .order_tool_viewports
+            .iter()
+            .filter_map(|(id, is_open, seq)| (!is_open.load(Ordering::Relaxed)).then_some((*id, *seq)))
+            .collect::<Vec<_>>();
+
+        self.order_tool_viewports
+            .retain(|(_, is_open, _)| is_open.load(Ordering::Relaxed));
+
+        for (id, seq) in closed {
+            self.unsubscribe_all_for_viewport(seq);
+            self.opened_viewports.retain(|opened| *opened != id);
+        }
     }
 
     pub(super) fn render_exit_confirm_viewport(&mut self, ctx: &egui::Context) {

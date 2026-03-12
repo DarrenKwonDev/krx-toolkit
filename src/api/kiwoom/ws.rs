@@ -108,10 +108,9 @@ impl KiwoomWs {
                     let raw = text.to_string();
                     let v = serde_json::from_str::<serde_json::Value>(&raw).map_err(|_| KiwoomError::Decode { raw })?;
 
-                    if let Some(tr) = v.get("trnm").and_then(serde_json::Value::as_str) {
-                        if tr != "PING" {
-                            ts_dbg!(&v); // do not delete
-                        }
+                    let is_ping = v.get("trnm").and_then(serde_json::Value::as_str) == Some("PING");
+                    if !is_ping {
+                        ts_dbg!(&v); // do not delete
                     }
                     return Ok(v);
                 }

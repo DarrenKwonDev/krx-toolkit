@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use eframe::egui;
@@ -8,7 +11,7 @@ use tokio::sync::mpsc;
 
 use crate::tasks::{
     rest_task::{RestCommand, RestEvent},
-    ws_task::{WsCommand, WsEvent},
+    ws_task::{WsCommand, WsEvent, WsTopic, extract_trnm, extract_ws_topic},
 };
 
 mod control_panel;
@@ -37,6 +40,8 @@ pub struct MyApp {
     show_account_viewport: Arc<AtomicBool>,
     show_emergency_order_viewport: Arc<AtomicBool>,
     order_tool_viewports: Vec<(egui::ViewportId, Arc<AtomicBool>, u64)>,
+    order_active_topics: HashMap<u64, HashSet<WsTopic>>,
+    order_selected_codes: HashMap<u64, String>,
     next_order_tool_seq: u64,
     // ----하단 바 상태----
     ws_connected: bool,
@@ -67,10 +72,70 @@ impl MyApp {
             show_account_viewport: Default::default(),
             show_emergency_order_viewport: Default::default(),
             order_tool_viewports: vec![],
+            order_active_topics: HashMap::new(),
+            order_selected_codes: HashMap::new(),
             next_order_tool_seq: 0,
             ws_connected: false,
             ws_login_ok: false,
         }
+    }
+
+    pub(super) fn subscribe_topic(&mut self, subscriber_id: u64, ty: &str, item: &str) {
+        let item = item.trim();
+        if item.is_empty() {
+            return;
+        }
+
+        let topic = WsTopic {
+            item: item.to_owned(),
+            ty: ty.to_owned(),
+        };
+        let inserted = self
+            .order_active_topics
+            .entry(subscriber_id)
+            .or_default()
+            .insert(topic.clone());
+        if inserted {
+            let _ = self.ws_cmd_tx.send(WsCommand::Subscribe {
+                subscriber_id,
+                topics: vec![topic],
+            });
+        }
+    }
+
+    pub(super) fn unsubscribe_topic(&mut self, subscriber_id: u64, ty: &str, item: &str) {
+        let item = item.trim();
+        if item.is_empty() {
+            return;
+        }
+
+        let topic = WsTopic {
+            item: item.to_owned(),
+            ty: ty.to_owned(),
+        };
+
+        let mut removed = false;
+        let mut should_remove_entry = false;
+        if let Some(set) = self.order_active_topics.get_mut(&subscriber_id) {
+            removed = set.remove(&topic);
+            should_remove_entry = set.is_empty();
+        }
+        if should_remove_entry {
+            self.order_active_topics.remove(&subscriber_id);
+        }
+
+        if removed {
+            let _ = self.ws_cmd_tx.send(WsCommand::Unsubscribe {
+                subscriber_id,
+                topics: vec![topic],
+            });
+        }
+    }
+
+    pub(super) fn unsubscribe_all_for_viewport(&mut self, subscriber_id: u64) {
+        let _ = self.ws_cmd_tx.send(WsCommand::UnsubscribeAll { subscriber_id });
+        self.order_active_topics.remove(&subscriber_id);
+        self.order_selected_codes.remove(&subscriber_id);
     }
 
     fn poll_background_events(&mut self) {
@@ -82,7 +147,12 @@ impl MyApp {
                 WsEvent::LoginAck { ok, .. } => {
                     self.ws_login_ok = ok;
                 }
-                WsEvent::Raw(_) => {}
+                WsEvent::Raw(raw) => {
+                    let _trnm = extract_trnm(&raw);
+                    let _routing_targets = extract_ws_topic(&raw)
+                        .map(|topic| self.subscribers_for_topic(&topic))
+                        .unwrap_or_default();
+                }
                 WsEvent::Error(_) => {
                     self.ws_connected = false;
                     self.ws_login_ok = false;
@@ -97,6 +167,13 @@ impl MyApp {
             // 지금은 하단바 요구사항이 WS 중심이니까 일단 비워둬도 됨
             // 이후 REST 상태 표시할 때 match 추가
         }
+    }
+
+    fn subscribers_for_topic(&self, topic: &WsTopic) -> Vec<u64> {
+        self.order_active_topics
+            .iter()
+            .filter_map(|(seq, topics)| topics.contains(topic).then_some(*seq))
+            .collect()
     }
 }
 
