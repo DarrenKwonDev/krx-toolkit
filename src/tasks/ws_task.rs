@@ -28,7 +28,15 @@ pub enum WsCommand {
 #[derive(Debug)]
 pub enum WsEvent {
     Connected,
-    LoginAck { ok: bool, _raw: Value },
+    LoginAck {
+        ok: bool,
+        _raw: Value,
+    },
+    RoutedRaw {
+        subscriber_id: u64,
+        topic: WsTopic,
+        raw: Value,
+    },
     Raw(Value),
     Error(String),
     Disconnected,
@@ -270,9 +278,24 @@ async fn run_ws_worker(
                                     }
                                 }
                             }
-                            let _ = from_ws_data_tx.send(WsEvent::LoginAck { ok, raw: v });
+                            let _ = from_ws_data_tx.send(WsEvent::LoginAck { ok, _raw: v });
                         } else {
-                            let _ = from_ws_data_tx.send(WsEvent::Raw(v));
+                            let mut routed = false;
+                            if let Some(topic) = extract_ws_topic(&v) {
+                                if let Some(subscribers) = topic_subscribers.get(&topic) {
+                                    for subscriber_id in subscribers {
+                                        let _ = from_ws_data_tx.send(WsEvent::RoutedRaw {
+                                            subscriber_id: *subscriber_id,
+                                            topic: topic.clone(),
+                                            raw: v.clone(),
+                                        });
+                                        routed = true;
+                                    }
+                                }
+                            }
+                            if !routed {
+                                let _ = from_ws_data_tx.send(WsEvent::Raw(v));
+                            }
                         }
                     }
                     Err(e) => {

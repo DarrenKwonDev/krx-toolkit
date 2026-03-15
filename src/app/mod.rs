@@ -7,11 +7,12 @@ use std::{
 };
 
 use eframe::egui;
+use serde_json::Value;
 use tokio::sync::mpsc;
 
 use crate::tasks::{
     rest_task::{RestCommand, RestEvent},
-    ws_task::{WsCommand, WsEvent, WsTopic, extract_trnm, extract_ws_topic},
+    ws_task::{WsCommand, WsEvent, WsTopic},
 };
 
 mod control_panel;
@@ -42,6 +43,7 @@ pub struct MyApp {
     order_tool_viewports: Vec<(egui::ViewportId, Arc<AtomicBool>, u64)>,
     order_active_topics: HashMap<u64, HashSet<WsTopic>>,
     order_selected_codes: HashMap<u64, String>,
+    ws_latest_by_seq: HashMap<u64, HashMap<WsTopic, Value>>,
     next_order_tool_seq: u64,
     // ----하단 바 상태----
     ws_connected: bool,
@@ -74,6 +76,7 @@ impl MyApp {
             order_tool_viewports: vec![],
             order_active_topics: HashMap::new(),
             order_selected_codes: HashMap::new(),
+            ws_latest_by_seq: HashMap::new(),
             next_order_tool_seq: 0,
             ws_connected: false,
             ws_login_ok: false,
@@ -84,6 +87,7 @@ impl MyApp {
         let _ = self.ws_cmd_tx.send(WsCommand::UnsubscribeAll { subscriber_id });
         self.order_active_topics.remove(&subscriber_id);
         self.order_selected_codes.remove(&subscriber_id);
+        self.ws_latest_by_seq.remove(&subscriber_id);
     }
 
     fn poll_background_events(&mut self) {
@@ -95,12 +99,17 @@ impl MyApp {
                 WsEvent::LoginAck { ok, .. } => {
                     self.ws_login_ok = ok;
                 }
-                WsEvent::Raw(raw) => {
-                    let _trnm = extract_trnm(&raw);
-                    let _routing_targets = extract_ws_topic(&raw)
-                        .map(|topic| self.subscribers_for_topic(&topic))
-                        .unwrap_or_default();
+                WsEvent::RoutedRaw {
+                    subscriber_id,
+                    topic,
+                    raw,
+                } => {
+                    self.ws_latest_by_seq
+                        .entry(subscriber_id)
+                        .or_default()
+                        .insert(topic, raw);
                 }
+                WsEvent::Raw(_) => {}
                 WsEvent::Error(_) => {
                     self.ws_connected = false;
                     self.ws_login_ok = false;
@@ -115,13 +124,6 @@ impl MyApp {
             // 지금은 하단바 요구사항이 WS 중심이니까 일단 비워둬도 됨
             // 이후 REST 상태 표시할 때 match 추가
         }
-    }
-
-    fn subscribers_for_topic(&self, topic: &WsTopic) -> Vec<u64> {
-        self.order_active_topics
-            .iter()
-            .filter_map(|(seq, topics)| topics.contains(topic).then_some(*seq))
-            .collect()
     }
 }
 

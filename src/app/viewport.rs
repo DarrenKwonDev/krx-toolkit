@@ -168,6 +168,7 @@ impl MyApp {
             let open_for_child = Arc::clone(&is_open);
             let master_for_child = Arc::clone(&master);
             let ws_cmd_tx_for_child = self.ws_cmd_tx.clone();
+            let latest_raw_for_child = self.ws_latest_by_seq.get(&seq).cloned();
             ctx.show_viewport_deferred(
                 viewport_id,
                 egui::ViewportBuilder::default()
@@ -199,6 +200,19 @@ impl MyApp {
                             let selected_code = child_ctx
                                 .data_mut(|d| d.get_persisted::<String>(selected_code_id))
                                 .unwrap_or_default();
+
+                            if let Some(raw_by_topic) = latest_raw_for_child.as_ref() {
+                                if let Some(raw_0d) = find_latest_raw(raw_by_topic, ws_type::주식호가잔량, &selected_code)
+                                {
+                                    ui.add_space(2.0);
+                                    ui.small(format!("WS[0D]: {}", ws_raw_summary(raw_0d)));
+                                }
+                                if let Some(raw_0b) = find_latest_raw(raw_by_topic, ws_type::주식체결, &selected_code) {
+                                    ui.add_space(2.0);
+                                    ui.small(format!("WS[0B]: {}", ws_raw_summary(raw_0b)));
+                                }
+                            }
+
                             let desired_topics = if selected_code.trim().is_empty() {
                                 Vec::new()
                             } else {
@@ -374,4 +388,42 @@ fn parse_topic_key(key: &str) -> Option<WsTopic> {
         ty: ty.to_owned(),
         item: item.to_owned(),
     })
+}
+
+fn ws_raw_summary(v: &serde_json::Value) -> String {
+    let trnm = v.get("trnm").and_then(serde_json::Value::as_str).unwrap_or("-");
+    let ty = v
+        .get("type")
+        .or_else(|| v.get("real_type"))
+        .or_else(|| v.get("tr_type"))
+        .or_else(|| v.get("ty"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("-");
+    let item = v
+        .get("item")
+        .or_else(|| v.get("code"))
+        .or_else(|| v.get("stk_cd"))
+        .or_else(|| v.get("isu_cd"))
+        .or_else(|| v.get("symbol"))
+        .or_else(|| v.get("shrn_iscd"))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("-");
+    format!("trnm={trnm} type={ty} item={item}")
+}
+
+fn find_latest_raw<'a>(
+    raw_by_topic: &'a std::collections::HashMap<WsTopic, serde_json::Value>,
+    ty: &str,
+    item: &str,
+) -> Option<&'a serde_json::Value> {
+    let item = item.trim();
+    if item.is_empty() {
+        return None;
+    }
+
+    let key = WsTopic {
+        ty: ty.to_owned(),
+        item: item.to_owned(),
+    };
+    raw_by_topic.get(&key)
 }
