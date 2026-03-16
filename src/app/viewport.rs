@@ -191,27 +191,32 @@ impl MyApp {
                                 30,
                             );
 
-                            if let Some(ref selected) = output.selected {
-                                ui.add_space(4.0);
-                                ui.label(format!("선택: {} | {}", selected.code, selected.name));
-                            }
-
                             let selected_code_id = egui::Id::new(("order_tool_selected_code", seq));
                             let selected_code = child_ctx
                                 .data_mut(|d| d.get_persisted::<String>(selected_code_id))
                                 .unwrap_or_default();
 
-                            if let Some(raw_by_topic) = latest_raw_for_child.as_ref() {
-                                if let Some(raw_0d) = find_latest_raw(raw_by_topic, ws_type::주식호가잔량, &selected_code)
-                                {
-                                    ui.add_space(2.0);
-                                    ui.small(format!("WS[0D]: {}", ws_raw_summary(raw_0d)));
-                                }
-                                if let Some(raw_0b) = find_latest_raw(raw_by_topic, ws_type::주식체결, &selected_code) {
-                                    ui.add_space(2.0);
-                                    ui.small(format!("WS[0B]: {}", ws_raw_summary(raw_0b)));
-                                }
-                            }
+                            ui.add_space(4.0);
+                            let quote_0d = latest_raw_for_child
+                                .as_ref()
+                                .and_then(|raw_by_topic| find_0d_best_quote(raw_by_topic, &selected_code));
+                            let recv_at = latest_raw_for_child
+                                .as_ref()
+                                .and_then(|raw_by_topic| find_recv_at_for_selected(raw_by_topic, &selected_code))
+                                .unwrap_or("-".to_owned());
+                            let selected_label = output
+                                .selected
+                                .as_ref()
+                                .map(|selected| {
+                                    let ask = quote_0d.as_ref().map(|q| q.ask.as_str()).unwrap_or("-");
+                                    let bid = quote_0d.as_ref().map(|q| q.bid.as_str()).unwrap_or("-");
+                                    format!(
+                                        "선택: {} | {} | 매도 {} | 매수 {} | 수신 {}",
+                                        selected.code, selected.name, ask, bid, recv_at
+                                    )
+                                })
+                                .unwrap_or_else(|| "선택: -".to_owned());
+                            ui.label(selected_label);
 
                             let desired_topics = if selected_code.trim().is_empty() {
                                 Vec::new()
@@ -232,7 +237,14 @@ impl MyApp {
 
                         // actual order tools body
                         egui::CentralPanel::default().show(child_ctx, |ui| {
-                            render_order_normal_body(ui, child_ctx, seq);
+                            let selected_code_id = egui::Id::new(("order_tool_selected_code", seq));
+                            let selected_code = child_ctx
+                                .data_mut(|d| d.get_persisted::<String>(selected_code_id))
+                                .unwrap_or_default();
+                            let latest_0d_raw = latest_raw_for_child.as_ref().and_then(|raw_by_topic| {
+                                find_latest_raw(raw_by_topic, ws_type::주식호가잔량, &selected_code)
+                            });
+                            render_order_normal_body(ui, child_ctx, seq, latest_0d_raw);
                         });
                     }
                     if child_ctx.input(|i| i.viewport().close_requested()) {
@@ -390,27 +402,6 @@ fn parse_topic_key(key: &str) -> Option<WsTopic> {
     })
 }
 
-fn ws_raw_summary(v: &serde_json::Value) -> String {
-    let trnm = v.get("trnm").and_then(serde_json::Value::as_str).unwrap_or("-");
-    let ty = v
-        .get("type")
-        .or_else(|| v.get("real_type"))
-        .or_else(|| v.get("tr_type"))
-        .or_else(|| v.get("ty"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("-");
-    let item = v
-        .get("item")
-        .or_else(|| v.get("code"))
-        .or_else(|| v.get("stk_cd"))
-        .or_else(|| v.get("isu_cd"))
-        .or_else(|| v.get("symbol"))
-        .or_else(|| v.get("shrn_iscd"))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or("-");
-    format!("trnm={trnm} type={ty} item={item}")
-}
-
 fn find_latest_raw<'a>(
     raw_by_topic: &'a std::collections::HashMap<WsTopic, serde_json::Value>,
     ty: &str,
@@ -426,4 +417,72 @@ fn find_latest_raw<'a>(
         item: item.to_owned(),
     };
     raw_by_topic.get(&key)
+}
+
+fn find_0d_best_quote(
+    raw_by_topic: &std::collections::HashMap<WsTopic, serde_json::Value>,
+    item: &str,
+) -> Option<BestQuoteView> {
+    let raw_0d = find_latest_raw(raw_by_topic, ws_type::주식호가잔량, item)?;
+    let values = raw_0d.get("values")?.as_object()?;
+
+    let ask = values
+        .get("41")
+        .and_then(serde_json::Value::as_str)
+        .map(format_price_text)
+        .unwrap_or_else(|| "-".to_owned());
+    let bid = values
+        .get("51")
+        .and_then(serde_json::Value::as_str)
+        .map(format_price_text)
+        .unwrap_or_else(|| "-".to_owned());
+    Some(BestQuoteView { ask, bid })
+}
+
+struct BestQuoteView {
+    ask: String,
+    bid: String,
+}
+
+fn find_recv_at_for_selected(
+    raw_by_topic: &std::collections::HashMap<WsTopic, serde_json::Value>,
+    item: &str,
+) -> Option<String> {
+    let raw_0d = find_latest_raw(raw_by_topic, ws_type::주식호가잔량, item)
+        .and_then(|v| v.get("_recv_at"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    if raw_0d.is_some() {
+        return raw_0d;
+    }
+
+    find_latest_raw(raw_by_topic, ws_type::주식체결, item)
+        .and_then(|v| v.get("_recv_at"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+}
+
+fn format_price_text(raw: &str) -> String {
+    let normalized = raw.trim().replace(',', "");
+    if normalized.is_empty() {
+        return "-".to_owned();
+    }
+
+    let Ok(parsed) = normalized.parse::<i64>() else {
+        return normalized;
+    };
+
+    format_i64_with_commas(parsed.abs())
+}
+
+fn format_i64_with_commas(value: i64) -> String {
+    let s = value.to_string();
+    let mut out = String::with_capacity(s.len() + (s.len().saturating_sub(1) / 3));
+    for (idx, ch) in s.chars().rev().enumerate() {
+        if idx > 0 && idx % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
 }

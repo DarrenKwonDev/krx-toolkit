@@ -13,14 +13,17 @@ const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
     (4, "매수4호가"),
     (5, "매수5호가"),
 ];
-const BUY_PRICE_TICK_OFFSETS: [i32; 5] = [-2, -1, 0, 1, 2];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
-const DEFAULT_BUY_PRICE_TICK_OFFSET: i32 = 0;
 const SPLIT_BUY_ROW_COUNT: usize = 3;
 const DEFAULT_SPLIT_BUY_WEIGHT_PCT: i32 = 0;
 const DEFAULT_TAKE_PROFIT_PCT: i32 = 5;
 
-pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+pub(super) fn render_order_normal_body(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    seq: u64,
+    latest_0d_raw: Option<&serde_json::Value>,
+) {
     egui::Frame::new()
         .fill(egui::Color32::from_rgb(255, 240, 245))
         .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
@@ -32,7 +35,7 @@ pub(super) fn render_order_normal_body(ui: &mut egui::Ui, ctx: &egui::Context, s
                 ui.add_space(2.0);
                 render_once_investment_amount_input(ui, ctx, seq);
                 ui.add_space(2.0);
-                render_buy_price_inputs(ui, ctx, seq);
+                render_buy_price_inputs(ui, ctx, seq, latest_0d_raw);
                 ui.add_space(2.0);
                 render_split_buy_rows(ui, ctx, seq);
                 ui.add_space(2.0);
@@ -243,22 +246,15 @@ fn parse_amount(raw: &str) -> Option<u64> {
     (parsed > 0).then_some(parsed)
 }
 
-fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, latest_0d_raw: Option<&serde_json::Value>) {
     let ref_level_id = egui::Id::new(("order_tool_buy_price_ref_level", seq));
-    let tick_offset_id = egui::Id::new(("order_tool_buy_price_tick_offset", seq));
 
     let mut ref_level = ctx
         .data_mut(|d| d.get_persisted::<i8>(ref_level_id))
         .unwrap_or(DEFAULT_BUY_PRICE_REF_LEVEL);
-    let mut tick_offset = ctx
-        .data_mut(|d| d.get_persisted::<i32>(tick_offset_id))
-        .unwrap_or(DEFAULT_BUY_PRICE_TICK_OFFSET);
 
     if !BUY_PRICE_REF_LEVELS.iter().any(|(code, _)| *code == ref_level) {
         ref_level = DEFAULT_BUY_PRICE_REF_LEVEL;
-    }
-    if !BUY_PRICE_TICK_OFFSETS.contains(&tick_offset) {
-        tick_offset = DEFAULT_BUY_PRICE_TICK_OFFSET;
     }
 
     ui.horizontal(|ui| {
@@ -273,20 +269,62 @@ fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
                 }
             });
 
-        egui::ComboBox::from_id_salt(("order_tool_buy_price_tick_combo", seq))
-            .selected_text(format!("{tick_offset}틱"))
-            .width(70.0)
-            .show_ui(ui, |ui| {
-                for offset in BUY_PRICE_TICK_OFFSETS {
-                    ui.selectable_value(&mut tick_offset, offset, format!("{offset}틱"));
-                }
-            });
+        let ref_price = price_from_0d_by_ref_level(latest_0d_raw, ref_level)
+            .map(format_price_text)
+            .unwrap_or_else(|| "-".to_owned());
+        ui.label(format!("= {ref_price}"));
     });
 
     ctx.data_mut(|d| {
         d.insert_persisted(ref_level_id, ref_level);
-        d.insert_persisted(tick_offset_id, tick_offset);
     });
+}
+
+fn price_from_0d_by_ref_level(latest_0d_raw: Option<&serde_json::Value>, ref_level: i8) -> Option<&str> {
+    let values = latest_0d_raw?.get("values")?.as_object()?;
+    let key = ref_level_to_0d_key(ref_level)?;
+    values.get(key).and_then(serde_json::Value::as_str)
+}
+
+fn ref_level_to_0d_key(ref_level: i8) -> Option<&'static str> {
+    match ref_level {
+        -5 => Some("45"),
+        -4 => Some("44"),
+        -3 => Some("43"),
+        -2 => Some("42"),
+        -1 => Some("41"),
+        1 => Some("51"),
+        2 => Some("52"),
+        3 => Some("53"),
+        4 => Some("54"),
+        5 => Some("55"),
+        _ => None,
+    }
+}
+
+fn format_price_text(raw: &str) -> String {
+    let normalized = raw.trim().replace(',', "");
+    if normalized.is_empty() {
+        return "-".to_owned();
+    }
+
+    let Ok(parsed) = normalized.parse::<i64>() else {
+        return normalized;
+    };
+
+    format_i64_with_commas(parsed.abs())
+}
+
+fn format_i64_with_commas(value: i64) -> String {
+    let s = value.to_string();
+    let mut out = String::with_capacity(s.len() + (s.len().saturating_sub(1) / 3));
+    for (idx, ch) in s.chars().rev().enumerate() {
+        if idx > 0 && idx % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
 }
 
 fn render_split_buy_rows(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {

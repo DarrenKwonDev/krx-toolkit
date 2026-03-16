@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
+use chrono::Local;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
@@ -281,13 +282,13 @@ async fn run_ws_worker(
                             let _ = from_ws_data_tx.send(WsEvent::LoginAck { ok, _raw: v });
                         } else {
                             let mut routed = false;
-                            if let Some(topic) = extract_ws_topic(&v) {
+                            for (topic, raw) in extract_routed_payloads(&v) {
                                 if let Some(subscribers) = topic_subscribers.get(&topic) {
                                     for subscriber_id in subscribers {
                                         let _ = from_ws_data_tx.send(WsEvent::RoutedRaw {
                                             subscriber_id: *subscriber_id,
                                             topic: topic.clone(),
-                                            raw: v.clone(),
+                                            raw: raw.clone(),
                                         });
                                         routed = true;
                                     }
@@ -331,6 +332,76 @@ pub fn extract_ws_topic(v: &Value) -> Option<WsTopic> {
         item: item.to_owned(),
         ty: ty.to_owned(),
     })
+}
+
+fn extract_routed_payloads(v: &Value) -> Vec<(WsTopic, Value)> {
+    let recv_at = Local::now().format("%H:%M:%S%.3f").to_string();
+
+    if let Some(topic) = extract_ws_topic(v) {
+        return vec![(topic, with_recv_at(v, &recv_at))];
+    }
+
+    let mut out = Vec::new();
+    let trnm = v.get("trnm").cloned().unwrap_or(Value::Null);
+
+    let Some(rows) = v.get("data").and_then(Value::as_array) else {
+        return out;
+    };
+
+    for row in rows {
+        let Some(map) = row.as_object() else {
+            continue;
+        };
+
+        let Some(ty) = pick_first_str(row, &["type", "real_type", "tr_type", "ty"]) else {
+            continue;
+        };
+        let Some(item) = pick_first_str(row, &["item", "code", "stk_cd", "isu_cd", "symbol", "shrn_iscd"]) else {
+            continue;
+        };
+
+        let ty = ty.trim();
+        let item = item.trim();
+        if ty.is_empty() || item.is_empty() {
+            continue;
+        }
+
+        let topic = WsTopic {
+            item: item.to_owned(),
+            ty: ty.to_owned(),
+        };
+
+        let mut normalized = map.clone();
+        normalized.entry("trnm".to_owned()).or_insert_with(|| trnm.clone());
+        normalized
+            .entry("type".to_owned())
+            .or_insert_with(|| Value::String(ty.to_owned()));
+        normalized
+            .entry("item".to_owned())
+            .or_insert_with(|| Value::String(item.to_owned()));
+        normalized
+            .entry("_recv_at".to_owned())
+            .or_insert_with(|| Value::String(recv_at.clone()));
+
+        out.push((topic, Value::Object(normalized)));
+    }
+
+    out
+}
+
+fn with_recv_at(raw: &Value, recv_at: &str) -> Value {
+    let Some(map) = raw.as_object() else {
+        return serde_json::json!({
+            "_recv_at": recv_at,
+            "raw": raw,
+        });
+    };
+
+    let mut normalized = map.clone();
+    normalized
+        .entry("_recv_at".to_owned())
+        .or_insert_with(|| Value::String(recv_at.to_owned()));
+    Value::Object(normalized)
 }
 
 fn is_login_ack(v: &Value) -> bool {

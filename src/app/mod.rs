@@ -4,6 +4,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
+    time::Duration,
 };
 
 use eframe::egui;
@@ -90,14 +91,26 @@ impl MyApp {
         self.ws_latest_by_seq.remove(&subscriber_id);
     }
 
-    fn poll_background_events(&mut self) {
-        while let Ok(evt) = self.ws_data_rx.try_recv() {
+    fn poll_background_events(&mut self) -> bool {
+        const MAX_WS_EVENTS_PER_FRAME: usize = 512;
+        const MAX_REST_EVENTS_PER_FRAME: usize = 128;
+
+        let mut ws_updated = false;
+        let mut ws_processed = 0usize;
+        while ws_processed < MAX_WS_EVENTS_PER_FRAME {
+            let Ok(evt) = self.ws_data_rx.try_recv() else {
+                break;
+            };
+            ws_processed += 1;
+
             match evt {
                 WsEvent::Connected => {
                     self.ws_connected = true;
+                    ws_updated = true;
                 }
                 WsEvent::LoginAck { ok, .. } => {
                     self.ws_login_ok = ok;
+                    ws_updated = true;
                 }
                 WsEvent::RoutedRaw {
                     subscriber_id,
@@ -108,22 +121,33 @@ impl MyApp {
                         .entry(subscriber_id)
                         .or_default()
                         .insert(topic, raw);
+                    ws_updated = true;
                 }
                 WsEvent::Raw(_) => {}
                 WsEvent::Error(_) => {
                     self.ws_connected = false;
                     self.ws_login_ok = false;
+                    ws_updated = true;
                 }
                 WsEvent::Disconnected => {
                     self.ws_connected = false;
                     self.ws_login_ok = false;
+                    ws_updated = true;
                 }
             }
         }
-        while let Ok(_evt) = self.rest_data_rx.try_recv() {
+
+        let mut rest_processed = 0usize;
+        while rest_processed < MAX_REST_EVENTS_PER_FRAME {
+            let Ok(_evt) = self.rest_data_rx.try_recv() else {
+                break;
+            };
+            rest_processed += 1;
             // 지금은 하단바 요구사항이 WS 중심이니까 일단 비워둬도 됨
             // 이후 REST 상태 표시할 때 match 추가
         }
+
+        ws_updated
     }
 }
 
@@ -137,7 +161,11 @@ impl eframe::App for MyApp {
             self.show_confirmation_dialog.store(true, Ordering::Relaxed);
         }
 
-        self.poll_background_events();
+        let ws_updated = self.poll_background_events();
+        if ws_updated {
+            ctx.request_repaint();
+        }
+        ctx.request_repaint_after(Duration::from_millis(33));
 
         // main control panel
         self.render_control_panel(ctx);
