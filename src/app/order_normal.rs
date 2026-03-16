@@ -1,6 +1,6 @@
 use eframe::egui;
 
-use crate::tasks::rest_task::RestCommand;
+use crate::{tasks::rest_task::RestCommand, utils::krx_tick_size};
 
 const DEFAULT_ONCE_INVESTMENT_AMOUNT: u64 = 100_000;
 const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
@@ -15,7 +15,9 @@ const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
     (4, "매수4호가"),
     (5, "매수5호가"),
 ];
+const BUY_PRICE_TICK_OFFSETS: [i32; 5] = [-2, -1, 0, 1, 2];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
+const DEFAULT_BUY_PRICE_TICK_OFFSET: i32 = 0;
 const SPLIT_BUY_ROW_COUNT: usize = 3;
 const DEFAULT_TAKE_PROFIT_PCT: i32 = 5;
 
@@ -296,13 +298,20 @@ fn parse_amount(raw: &str) -> Option<u64> {
 
 fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, latest_0d_raw: Option<&serde_json::Value>) {
     let ref_level_id = egui::Id::new(("order_tool_buy_price_ref_level", seq));
+    let tick_offset_id = egui::Id::new(("order_tool_buy_price_tick_offset", seq));
 
     let mut ref_level = ctx
         .data_mut(|d| d.get_persisted::<i8>(ref_level_id))
         .unwrap_or(DEFAULT_BUY_PRICE_REF_LEVEL);
+    let mut tick_offset = ctx
+        .data_mut(|d| d.get_persisted::<i32>(tick_offset_id))
+        .unwrap_or(DEFAULT_BUY_PRICE_TICK_OFFSET);
 
     if !BUY_PRICE_REF_LEVELS.iter().any(|(code, _)| *code == ref_level) {
         ref_level = DEFAULT_BUY_PRICE_REF_LEVEL;
+    }
+    if !BUY_PRICE_TICK_OFFSETS.contains(&tick_offset) {
+        tick_offset = DEFAULT_BUY_PRICE_TICK_OFFSET;
     }
 
     ui.horizontal(|ui| {
@@ -317,14 +326,30 @@ fn render_buy_price_inputs(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, lat
                 }
             });
 
-        let ref_price = price_from_0d_by_ref_level(latest_0d_raw, ref_level)
-            .map(format_price_text)
-            .unwrap_or_else(|| "-".to_owned());
-        ui.label(format!("= {ref_price}"));
+        egui::ComboBox::from_id_salt(("order_tool_buy_price_tick_combo", seq))
+            .selected_text(format!("{tick_offset}틱"))
+            .width(70.0)
+            .show_ui(ui, |ui| {
+                for offset in BUY_PRICE_TICK_OFFSETS {
+                    ui.selectable_value(&mut tick_offset, offset, format!("{offset}틱"));
+                }
+            });
+
+        let final_price_label = calc_common_buy_price(latest_0d_raw, ref_level, tick_offset)
+            .map(|calc| {
+                let base = format_u64_with_commas(calc.base_price);
+                let delta = format_u64_with_commas(calc.delta_won.unsigned_abs());
+                let final_price = format_u64_with_commas(calc.final_price);
+                let op = if calc.delta_won < 0 { '-' } else { '+' };
+                format!("= {base} {op} {delta} = {final_price}")
+            })
+            .unwrap_or_else(|| "= -".to_owned());
+        ui.label(final_price_label);
     });
 
     ctx.data_mut(|d| {
         d.insert_persisted(ref_level_id, ref_level);
+        d.insert_persisted(tick_offset_id, tick_offset);
     });
 }
 
@@ -487,9 +512,54 @@ fn read_common_buy_price_from_ws(ctx: &egui::Context, seq: u64, latest_0d_raw: O
     let ref_level = ctx
         .data_mut(|d| d.get_persisted::<i8>(egui::Id::new(("order_tool_buy_price_ref_level", seq))))
         .unwrap_or(DEFAULT_BUY_PRICE_REF_LEVEL);
+    let tick_offset = ctx
+        .data_mut(|d| d.get_persisted::<i32>(egui::Id::new(("order_tool_buy_price_tick_offset", seq))))
+        .unwrap_or(DEFAULT_BUY_PRICE_TICK_OFFSET);
 
+    calc_common_buy_price(latest_0d_raw, ref_level, tick_offset).map(|calc| calc.final_price)
+}
+
+struct CommonBuyPriceCalc {
+    base_price: u64,
+    final_price: u64,
+    delta_won: i64,
+}
+
+fn calc_common_buy_price(
+    latest_0d_raw: Option<&serde_json::Value>,
+    ref_level: i8,
+    tick_offset: i32,
+) -> Option<CommonBuyPriceCalc> {
     let raw = price_from_0d_by_ref_level(latest_0d_raw, ref_level)?;
-    parse_price_to_u64(raw)
+    let base_price = parse_price_to_u64(raw)?;
+    let final_price = apply_tick_offset(base_price, tick_offset)?;
+    let delta_won = final_price as i64 - base_price as i64;
+    Some(CommonBuyPriceCalc {
+        base_price,
+        final_price,
+        delta_won,
+    })
+}
+
+fn apply_tick_offset(base_price: u64, tick_offset: i32) -> Option<u64> {
+    let mut price = base_price;
+    if tick_offset == 0 {
+        return Some(price);
+    }
+
+    if tick_offset > 0 {
+        for _ in 0..tick_offset {
+            let tick = u64::try_from(krx_tick_size(price as i64)).ok()?;
+            price = price.checked_add(tick)?;
+        }
+        return Some(price);
+    }
+
+    for _ in 0..(-tick_offset) {
+        let tick = u64::try_from(krx_tick_size(price as i64)).ok()?;
+        price = price.checked_sub(tick)?;
+    }
+    (price > 0).then_some(price)
 }
 
 fn parse_price_to_u64(raw: &str) -> Option<u64> {
