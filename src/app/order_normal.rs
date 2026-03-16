@@ -15,7 +15,6 @@ const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
 ];
 const DEFAULT_BUY_PRICE_REF_LEVEL: i8 = 1;
 const SPLIT_BUY_ROW_COUNT: usize = 3;
-const DEFAULT_SPLIT_BUY_WEIGHT_PCT: i32 = 0;
 const DEFAULT_TAKE_PROFIT_PCT: i32 = 5;
 
 pub(super) fn render_order_normal_body(
@@ -37,7 +36,7 @@ pub(super) fn render_order_normal_body(
                 ui.add_space(2.0);
                 render_buy_price_inputs(ui, ctx, seq, latest_0d_raw);
                 ui.add_space(2.0);
-                render_split_buy_rows(ui, ctx, seq);
+                render_split_buy_rows(ui, ctx, seq, latest_0d_raw);
                 ui.add_space(2.0);
                 ui.separator();
                 let buy_all_btn = ui.add_sized([100.0, 24.0], egui::Button::new("일괄 매수 시행"));
@@ -327,22 +326,35 @@ fn format_i64_with_commas(value: i64) -> String {
     out.chars().rev().collect()
 }
 
-fn render_split_buy_rows(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64) {
+fn render_split_buy_rows(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, latest_0d_raw: Option<&serde_json::Value>) {
+    let once_investment_amount = ctx
+        .data_mut(|d| d.get_persisted::<u64>(egui::Id::new(("order_tool_once_investment_amount_value", seq))))
+        .unwrap_or(DEFAULT_ONCE_INVESTMENT_AMOUNT);
+    let common_buy_price = read_common_buy_price_from_ws(ctx, seq, latest_0d_raw);
+
     for row_index in 0..SPLIT_BUY_ROW_COUNT {
-        render_split_buy_row(ui, ctx, seq, row_index);
+        render_split_buy_row(ui, ctx, seq, row_index, once_investment_amount, common_buy_price);
         if row_index + 1 < SPLIT_BUY_ROW_COUNT {
             ui.add_space(4.0);
         }
     }
 }
 
-fn render_split_buy_row(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, row_index: usize) {
+fn render_split_buy_row(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    seq: u64,
+    row_index: usize,
+    once_investment_amount: u64,
+    common_buy_price: Option<u64>,
+) {
     let weight_pct_id = egui::Id::new(("order_tool_split_buy_weight_pct", seq, row_index));
     let weight_pct_draft_id = egui::Id::new(("order_tool_split_buy_weight_pct_draft", seq, row_index));
+    let default_weight_pct = default_split_buy_weight_pct(row_index);
 
     let mut weight_pct = ctx
         .data_mut(|d| d.get_persisted::<i32>(weight_pct_id))
-        .unwrap_or(DEFAULT_SPLIT_BUY_WEIGHT_PCT)
+        .unwrap_or(default_weight_pct)
         .clamp(0, 100);
     let mut weight_pct_draft = ctx
         .data_mut(|d| d.get_persisted::<String>(weight_pct_draft_id))
@@ -352,6 +364,8 @@ fn render_split_buy_row(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, row_in
         ui.label(format!("분할매수{}", row_index + 1));
         render_percent_text_input(ui, &mut weight_pct, &mut weight_pct_draft);
         ui.label("%");
+        let buyable_qty = calc_buyable_qty(once_investment_amount, weight_pct, common_buy_price);
+        ui.label(format!("{}주", format_u64_with_commas(buyable_qty)));
 
         let buy_btn = ui.add_sized([80.0, 24.0], egui::Button::new("매수 시행"));
         if buy_btn.clicked() {
@@ -365,6 +379,59 @@ fn render_split_buy_row(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, row_in
         d.insert_persisted(weight_pct_id, weight_pct);
         d.insert_persisted(weight_pct_draft_id, weight_pct_draft);
     });
+}
+
+fn default_split_buy_weight_pct(row_index: usize) -> i32 {
+    match row_index {
+        0 => 20,
+        1 => 30,
+        2 => 50,
+        _ => 0,
+    }
+}
+
+fn read_common_buy_price_from_ws(ctx: &egui::Context, seq: u64, latest_0d_raw: Option<&serde_json::Value>) -> Option<u64> {
+    let ref_level = ctx
+        .data_mut(|d| d.get_persisted::<i8>(egui::Id::new(("order_tool_buy_price_ref_level", seq))))
+        .unwrap_or(DEFAULT_BUY_PRICE_REF_LEVEL);
+
+    let raw = price_from_0d_by_ref_level(latest_0d_raw, ref_level)?;
+    parse_price_to_u64(raw)
+}
+
+fn parse_price_to_u64(raw: &str) -> Option<u64> {
+    let normalized = raw.trim().replace(',', "");
+    if normalized.is_empty() {
+        return None;
+    }
+    let parsed = normalized.parse::<i64>().ok()?.abs();
+    u64::try_from(parsed).ok()
+}
+
+fn calc_buyable_qty(once_investment_amount: u64, weight_pct: i32, common_buy_price: Option<u64>) -> u64 {
+    let Some(price) = common_buy_price else {
+        return 0;
+    };
+    if price == 0 {
+        return 0;
+    }
+
+    let weight = weight_pct.clamp(0, 100) as u128;
+    let budget = (once_investment_amount as u128).saturating_mul(weight) / 100;
+    let qty = budget / (price as u128);
+    qty.min(u64::MAX as u128) as u64
+}
+
+fn format_u64_with_commas(value: u64) -> String {
+    let s = value.to_string();
+    let mut out = String::with_capacity(s.len() + (s.len().saturating_sub(1) / 3));
+    for (idx, ch) in s.chars().rev().enumerate() {
+        if idx > 0 && idx % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
 }
 
 fn buy_price_ref_level_label(code: i8) -> &'static str {
