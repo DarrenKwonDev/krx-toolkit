@@ -139,12 +139,42 @@ impl MyApp {
 
         let mut rest_processed = 0usize;
         while rest_processed < MAX_REST_EVENTS_PER_FRAME {
-            let Ok(_evt) = self.rest_data_rx.try_recv() else {
+            let Ok(evt) = self.rest_data_rx.try_recv() else {
                 break;
             };
             rest_processed += 1;
-            // 지금은 하단바 요구사항이 WS 중심이니까 일단 비워둬도 됨
-            // 이후 REST 상태 표시할 때 match 추가
+            match evt {
+                RestEvent::BuyStock {
+                    request_id,
+                    stk_cd,
+                    ord_qty,
+                    trde_tp,
+                    ord_no,
+                    dmst_stex_tp,
+                } => {
+                    log::info!(
+                        "buy order ack: request_id={request_id}, stk_cd={stk_cd}, ord_qty={ord_qty}, trde_tp={trde_tp}, ord_no={:?}, exchange={:?}",
+                        ord_no,
+                        dmst_stex_tp
+                    );
+                }
+                RestEvent::Error { request_id, message } => {
+                    log::error!("rest error: request_id={request_id:?}, message={message}");
+                }
+                RestEvent::AccessToken { request_id, token } => {
+                    log::debug!("rest access token: request_id={request_id}, token_len={}", token.len());
+                }
+                RestEvent::MasterStock {
+                    request_id,
+                    total_pages,
+                    ..
+                } => {
+                    log::debug!("rest master stock: request_id={request_id}, total_pages={total_pages}");
+                }
+                RestEvent::Stopped => {
+                    log::info!("rest worker stopped");
+                }
+            }
         }
 
         ws_updated

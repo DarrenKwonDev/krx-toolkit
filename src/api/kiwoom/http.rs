@@ -34,6 +34,23 @@ pub struct KiwoomApi {
     refresh_lock: Mutex<()>,
 }
 
+#[derive(Debug, Clone)]
+pub struct BuyStockRequest {
+    pub dmst_stex_tp: String,
+    pub stk_cd: String,
+    pub ord_qty: u64,
+    pub ord_uv: Option<u64>,
+    pub trde_tp: String,
+    pub cond_uv: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuyStockResponse {
+    pub ord_no: Option<String>,
+    pub dmst_stex_tp: Option<String>,
+    pub raw: serde_json::Value,
+}
+
 impl KiwoomApi {
     pub async fn new() -> Result<Self, KiwoomError> {
         let app_key = std::env::var("KIWOOM_APP_KEY").expect("app key missing in .env");
@@ -122,6 +139,53 @@ impl KiwoomApi {
             body,
             cont_yn: resp_cont_yn,
             next_key: resp_next_key,
+        })
+    }
+
+    pub async fn buy_stock(&self, req_data: BuyStockRequest) -> Result<BuyStockResponse, KiwoomError> {
+        let token = self.access_token().await?;
+        let payload = serde_json::json!({
+            "dmst_stex_tp": req_data.dmst_stex_tp,
+            "stk_cd": req_data.stk_cd,
+            "ord_qty": req_data.ord_qty.to_string(),
+            "ord_uv": req_data.ord_uv.map(|v| v.to_string()),
+            "trde_tp": req_data.trde_tp,
+            "cond_uv": req_data.cond_uv.map(|v| v.to_string()),
+        });
+
+        let resp = self
+            .client
+            .post(self.url(routes::주문))
+            .header("authorization", format!("Bearer {token}"))
+            .header("api-id", tr::주식매수주문)
+            .json(&payload)
+            .send()
+            .await
+            .map_err(KiwoomError::Transport)?;
+
+        let status = resp.status();
+        let text = resp.text().await.map_err(KiwoomError::Transport)?;
+        if !status.is_success() {
+            return Err(KiwoomError::HttpStatus { status, body: text });
+        }
+
+        let body =
+            serde_json::from_str::<serde_json::Value>(&text).map_err(|_| KiwoomError::Decode { raw: text.clone() })?;
+        if let Some(code) = body.get("return_code").and_then(|v| v.as_i64()) {
+            if code != 0 {
+                let msg = body.get("return_msg").and_then(|v| v.as_str()).map(ToOwned::to_owned);
+                return Err(KiwoomError::ApiError {
+                    code: code as i32,
+                    message: msg,
+                    raw: text,
+                });
+            }
+        }
+
+        Ok(BuyStockResponse {
+            ord_no: body.get("ord_no").and_then(|v| v.as_str()).map(str::to_owned),
+            dmst_stex_tp: body.get("dmst_stex_tp").and_then(|v| v.as_str()).map(str::to_owned),
+            raw: body,
         })
     }
 
@@ -267,6 +331,7 @@ mod tr {
     pub const 계좌평가현황요청: &str = "kt00004"; // 누적손익률
     pub const 당일실현손익상세요청: &str = "ka10077"; // trade 별 실현 손익/수익률
     pub const 종목정보리스트: &str = "ka10099"; // 마스터
+    pub const 주식매수주문: &str = "kt10000";
 }
 
 #[cfg(test)]

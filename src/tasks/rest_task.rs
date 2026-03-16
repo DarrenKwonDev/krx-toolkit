@@ -3,12 +3,26 @@ use std::sync::Arc;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use crate::api::kiwoom::http::KiwoomApi;
+use crate::api::kiwoom::http::{BuyStockRequest, KiwoomApi};
 
 #[derive(Debug, Clone)]
 pub enum RestCommand {
-    AccessToken { request_id: u64 },
-    FetchMasterStock { request_id: u64, mrkt_tp: String },
+    AccessToken {
+        request_id: u64,
+    },
+    FetchMasterStock {
+        request_id: u64,
+        mrkt_tp: String,
+    },
+    BuyStock {
+        request_id: u64,
+        dmst_stex_tp: String,
+        stk_cd: String,
+        ord_qty: u64,
+        ord_uv: Option<u64>,
+        trde_tp: String,
+        cond_uv: Option<u64>,
+    },
     Shutdown,
 }
 
@@ -22,6 +36,14 @@ pub enum RestEvent {
         request_id: u64,
         pages: Vec<Value>,
         total_pages: usize,
+    },
+    BuyStock {
+        request_id: u64,
+        stk_cd: String,
+        ord_qty: u64,
+        trde_tp: String,
+        ord_no: Option<String>,
+        dmst_stex_tp: Option<String>,
     },
     Error {
         request_id: Option<u64>,
@@ -100,6 +122,42 @@ async fn run_rest_worker(
 
                     cont_yn = page.cont_yn;
                     next_key = page.next_key;
+                }
+            }
+            RestCommand::BuyStock {
+                request_id,
+                dmst_stex_tp,
+                stk_cd,
+                ord_qty,
+                ord_uv,
+                trde_tp,
+                cond_uv,
+            } => {
+                let req = BuyStockRequest {
+                    dmst_stex_tp,
+                    stk_cd: stk_cd.clone(),
+                    ord_qty,
+                    ord_uv,
+                    trde_tp: trde_tp.clone(),
+                    cond_uv,
+                };
+                match api.buy_stock(req).await {
+                    Ok(resp) => {
+                        let _ = from_rest_data_tx.send(RestEvent::BuyStock {
+                            request_id,
+                            stk_cd,
+                            ord_qty,
+                            trde_tp,
+                            ord_no: resp.ord_no,
+                            dmst_stex_tp: resp.dmst_stex_tp,
+                        });
+                    }
+                    Err(e) => {
+                        let _ = from_rest_data_tx.send(RestEvent::Error {
+                            request_id: Some(request_id),
+                            message: format!("buy_stock failed: {e}"),
+                        });
+                    }
                 }
             }
             RestCommand::Shutdown => {

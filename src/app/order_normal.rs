@@ -1,5 +1,7 @@
 use eframe::egui;
 
+use crate::tasks::rest_task::RestCommand;
+
 const DEFAULT_ONCE_INVESTMENT_AMOUNT: u64 = 100_000;
 const BUY_PRICE_REF_LEVELS: [(i8, &str); 10] = [
     (-5, "매도5호가"),
@@ -22,7 +24,15 @@ pub(super) fn render_order_normal_body(
     ctx: &egui::Context,
     seq: u64,
     latest_0d_raw: Option<&serde_json::Value>,
+    rest_cmd_tx: &tokio::sync::mpsc::UnboundedSender<RestCommand>,
 ) {
+    let selected_code = ctx
+        .data_mut(|d| d.get_persisted::<String>(egui::Id::new(("order_tool_selected_code", seq))))
+        .unwrap_or_default();
+    let selected_market = ctx
+        .data_mut(|d| d.get_persisted::<String>(egui::Id::new(("order_tool_selected_market", seq))))
+        .unwrap_or_default();
+
     egui::Frame::new()
         .fill(egui::Color32::from_rgb(255, 240, 245))
         .stroke(egui::Stroke::new(1.0, egui::Color32::BLACK))
@@ -36,13 +46,52 @@ pub(super) fn render_order_normal_body(
                 ui.add_space(2.0);
                 render_buy_price_inputs(ui, ctx, seq, latest_0d_raw);
                 ui.add_space(2.0);
-                render_split_buy_rows(ui, ctx, seq, latest_0d_raw);
+                render_split_buy_rows(
+                    ui,
+                    ctx,
+                    seq,
+                    latest_0d_raw,
+                    rest_cmd_tx,
+                    &selected_code,
+                    &selected_market,
+                );
                 ui.add_space(2.0);
                 ui.separator();
-                let buy_all_btn = ui.add_sized([100.0, 24.0], egui::Button::new("일괄 매수 시행"));
-                if buy_all_btn.clicked() {
-                    // manual bulk buy entry point
-                }
+                let once_investment_amount = ctx
+                    .data_mut(|d| d.get_persisted::<u64>(egui::Id::new(("order_tool_once_investment_amount_value", seq))))
+                    .unwrap_or(DEFAULT_ONCE_INVESTMENT_AMOUNT);
+                let common_buy_price = read_common_buy_price_from_ws(ctx, seq, latest_0d_raw);
+                let buy_all_qty = calc_buyable_qty(once_investment_amount, 100, common_buy_price);
+                let buy_all_label = format!("일괄 매수 시행 ({}주)", format_u64_with_commas(buy_all_qty));
+                ui.horizontal(|ui| {
+                    let buy_all_btn = ui.add_sized([180.0, 24.0], egui::Button::new(buy_all_label));
+                    if buy_all_btn.clicked() {
+                        submit_buy_order(
+                            rest_cmd_tx,
+                            ctx,
+                            seq,
+                            &selected_code,
+                            &selected_market,
+                            buy_all_qty,
+                            common_buy_price,
+                            ORDER_TYPE_LIMIT,
+                        );
+                    }
+
+                    let buy_all_market_btn = ui.add_sized([90.0, 24.0], egui::Button::new("시장가"));
+                    if buy_all_market_btn.clicked() {
+                        submit_buy_order(
+                            rest_cmd_tx,
+                            ctx,
+                            seq,
+                            &selected_code,
+                            &selected_market,
+                            buy_all_qty,
+                            None,
+                            ORDER_TYPE_MARKET,
+                        );
+                    }
+                });
             });
         });
 
@@ -326,14 +375,32 @@ fn format_i64_with_commas(value: i64) -> String {
     out.chars().rev().collect()
 }
 
-fn render_split_buy_rows(ui: &mut egui::Ui, ctx: &egui::Context, seq: u64, latest_0d_raw: Option<&serde_json::Value>) {
+fn render_split_buy_rows(
+    ui: &mut egui::Ui,
+    ctx: &egui::Context,
+    seq: u64,
+    latest_0d_raw: Option<&serde_json::Value>,
+    rest_cmd_tx: &tokio::sync::mpsc::UnboundedSender<RestCommand>,
+    selected_code: &str,
+    selected_market: &str,
+) {
     let once_investment_amount = ctx
         .data_mut(|d| d.get_persisted::<u64>(egui::Id::new(("order_tool_once_investment_amount_value", seq))))
         .unwrap_or(DEFAULT_ONCE_INVESTMENT_AMOUNT);
     let common_buy_price = read_common_buy_price_from_ws(ctx, seq, latest_0d_raw);
 
     for row_index in 0..SPLIT_BUY_ROW_COUNT {
-        render_split_buy_row(ui, ctx, seq, row_index, once_investment_amount, common_buy_price);
+        render_split_buy_row(
+            ui,
+            ctx,
+            seq,
+            row_index,
+            once_investment_amount,
+            common_buy_price,
+            rest_cmd_tx,
+            selected_code,
+            selected_market,
+        );
         if row_index + 1 < SPLIT_BUY_ROW_COUNT {
             ui.add_space(4.0);
         }
@@ -347,6 +414,9 @@ fn render_split_buy_row(
     row_index: usize,
     once_investment_amount: u64,
     common_buy_price: Option<u64>,
+    rest_cmd_tx: &tokio::sync::mpsc::UnboundedSender<RestCommand>,
+    selected_code: &str,
+    selected_market: &str,
 ) {
     let weight_pct_id = egui::Id::new(("order_tool_split_buy_weight_pct", seq, row_index));
     let weight_pct_draft_id = egui::Id::new(("order_tool_split_buy_weight_pct_draft", seq, row_index));
@@ -369,7 +439,30 @@ fn render_split_buy_row(
 
         let buy_btn = ui.add_sized([80.0, 24.0], egui::Button::new("매수 시행"));
         if buy_btn.clicked() {
-            // manual split buy entry point
+            submit_buy_order(
+                rest_cmd_tx,
+                ctx,
+                seq,
+                selected_code,
+                selected_market,
+                buyable_qty,
+                common_buy_price,
+                ORDER_TYPE_LIMIT,
+            );
+        }
+
+        let buy_market_btn = ui.add_sized([70.0, 24.0], egui::Button::new("시장가"));
+        if buy_market_btn.clicked() {
+            submit_buy_order(
+                rest_cmd_tx,
+                ctx,
+                seq,
+                selected_code,
+                selected_market,
+                buyable_qty,
+                None,
+                ORDER_TYPE_MARKET,
+            );
         }
     });
 
@@ -432,6 +525,58 @@ fn format_u64_with_commas(value: u64) -> String {
         out.push(ch);
     }
     out.chars().rev().collect()
+}
+
+const ORDER_TYPE_LIMIT: &str = "0";
+const ORDER_TYPE_MARKET: &str = "3";
+
+fn submit_buy_order(
+    rest_cmd_tx: &tokio::sync::mpsc::UnboundedSender<RestCommand>,
+    ctx: &egui::Context,
+    seq: u64,
+    selected_code: &str,
+    selected_market: &str,
+    ord_qty: u64,
+    ord_uv: Option<u64>,
+    trde_tp: &str,
+) {
+    let stk_cd = selected_code.trim();
+    if stk_cd.is_empty() || ord_qty == 0 {
+        return;
+    }
+
+    let dmst_stex_tp = market_to_exchange_type(selected_market);
+    let request_id = next_order_request_id(ctx, seq);
+
+    let _ = rest_cmd_tx.send(RestCommand::BuyStock {
+        request_id,
+        dmst_stex_tp,
+        stk_cd: stk_cd.to_owned(),
+        ord_qty,
+        ord_uv,
+        trde_tp: trde_tp.to_owned(),
+        cond_uv: None,
+    });
+}
+
+fn market_to_exchange_type(selected_market: &str) -> String {
+    let market = selected_market.trim().to_ascii_uppercase();
+    if market == "NXT" {
+        return "NXT".to_owned();
+    }
+    if market == "SOR" {
+        return "SOR".to_owned();
+    }
+    "KRX".to_owned()
+}
+
+fn next_order_request_id(ctx: &egui::Context, seq: u64) -> u64 {
+    let request_id_key = egui::Id::new(("order_tool_next_request_id", seq));
+    let mut next_id = ctx.data_mut(|d| d.get_persisted::<u64>(request_id_key)).unwrap_or(1);
+    let current = next_id;
+    next_id = next_id.saturating_add(1);
+    ctx.data_mut(|d| d.insert_persisted(request_id_key, next_id));
+    current
 }
 
 fn buy_price_ref_level_label(code: i8) -> &'static str {

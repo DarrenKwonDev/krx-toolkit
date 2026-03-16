@@ -168,6 +168,7 @@ impl MyApp {
             let open_for_child = Arc::clone(&is_open);
             let master_for_child = Arc::clone(&master);
             let ws_cmd_tx_for_child = self.ws_cmd_tx.clone();
+            let rest_cmd_tx_for_child = self.rest_cmd_tx.clone();
             let latest_raw_for_child = self.ws_latest_by_seq.get(&seq).cloned();
             ctx.show_viewport_deferred(
                 viewport_id,
@@ -244,7 +245,7 @@ impl MyApp {
                             let latest_0d_raw = latest_raw_for_child.as_ref().and_then(|raw_by_topic| {
                                 find_latest_raw(raw_by_topic, ws_type::주식호가잔량, &selected_code)
                             });
-                            render_order_normal_body(ui, child_ctx, seq, latest_0d_raw);
+                            render_order_normal_body(ui, child_ctx, seq, latest_0d_raw, &rest_cmd_tx_for_child);
                         });
                     }
                     if child_ctx.input(|i| i.viewport().close_requested()) {
